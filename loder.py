@@ -18,34 +18,16 @@ year = 2020
 
 
 class PayLode:
-    def __init__(self, base_url: str, year: int, state: str, lode_no: str, part: str = 'main') -> None:
-        self.base_url = base_url
+    def __init__(self, year: int, state: str, lode_no: str, part: str = 'main') -> None:
         self.state = state
         self.lode_no = lode_no
+        self.base_url = f'https://lehd.ces.census.gov/data/lodes/{self.lode_no.upper()}/{self.state}/'
         self.year = year
         self.part = part
-        self.job_type = {
-            'JT00': 'All Jobs',
-            'JT01': 'Primary Jobs',
-            'JT02': 'All Private Jobs',
-            'JT03': 'Private Primary Jobs',
-            'JT04': 'All Federal Jobs',
-            'JT05': 'Federal Primary Jobs',
-        }
-        self.workforce_segment = {
-            'S000': 'Total number of jobs,',
-            'SA01': 'Number of jobs of workers age 29 or younger',
-            'SA02': 'Number of jobs for workers age 30 to 54',
-            'SA03': 'Number of jobs for workers age 55 or older',
-            'SE01': 'Number of jobs with earnings $1250/month or less',
-            'SE02': 'Number of jobs with earnings $1251/month to $3333/month',
-            'SE03': 'Number of jobs with earnings greater than $3333/month',
-            'SI01': 'Number of jobs in Goods Producing industry sectors',
-            'SI02': 'Number of jobs in Trade, Transportation, and Utilities industry sectors',
-            'SI03': 'Number of jobs in All Other Services industry sectors',
-        }
+        self.job_types, self.workforce_types = self.__pick_tables()
 
         self.__create_db()
+        self.__create_tables()
         self.__populate_od_tables()
 
     def __db_connect(self, db: str = 'postgres'):
@@ -74,8 +56,49 @@ class PayLode:
     #     conn.commit()
     #     conn.close()
 
-    def __create_od_tables(self):
-        for key in self.job_type:
+    def __pick_tables(self):
+        """Pick your tables"""
+
+        def picker(table):
+            for i, (key, value) in enumerate(table.items(), 1):
+                print(f"{i}. {value} ({key})")
+            choices = input(
+                "Pick the tables you're interested in, separated by commas: ").split(',')
+            selected = {list(table.keys())[int(choice.strip(
+            )) - 1]: list(table.values())[int(choice.strip()) - 1] for choice in choices}
+            return selected
+
+        job_types = {
+            'JT00': 'All Jobs',
+            'JT01': 'Primary Jobs',
+            'JT02': 'All Private Jobs',
+            'JT03': 'Private Primary Jobs',
+            'JT04': 'All Federal Jobs',
+            'JT05': 'Federal Primary Jobs',
+        }
+        workforce_segments = {
+            'S000': 'Total number of jobs,',
+            'SA01': 'Number of jobs of workers age 29 or younger',
+            'SA02': 'Number of jobs for workers age 30 to 54',
+            'SA03': 'Number of jobs for workers age 55 or older',
+            'SE01': 'Number of jobs with earnings $1250/month or less',
+            'SE02': 'Number of jobs with earnings $1251/month to $3333/month',
+            'SE03': 'Number of jobs with earnings greater than $3333/month',
+            'SI01': 'Number of jobs in Goods Producing industry sectors',
+            'SI02': 'Number of jobs in Trade, Transportation, and Utilities industry sectors',
+            'SI03': 'Number of jobs in All Other Services industry sectors',
+        }
+
+        selected_job_types = picker(job_types)
+        print(f"Selected Job Types: {selected_job_types}")
+
+        selected_workforce_segments = picker(workforce_segments)
+        print(f"Selected Workforce Segments: {selected_workforce_segments}")
+
+        return selected_job_types, selected_workforce_segments
+
+    def __create_tables(self):
+        for key in self.job_types:
             cursor, conn = self.__db_connect(self.lode_no)
             cursor.execute(f"""
                 create schema if not exists od;
@@ -103,9 +126,11 @@ class PayLode:
         """Populates the created OD tables. Has to use temp table due to 
            adding state info"""
 
-        self.__create_od_tables()
-        urls = self.__od_urls()
+        urls = self.__create_urls('od')
         cursor, conn = self.__db_connect(self.lode_no)
+
+        print(
+            f'populating od tables for {self.job_types} table(s)')
 
         for key, value in urls.items():
             r = requests.get(value)
@@ -160,19 +185,39 @@ class PayLode:
         conn.commit()
         conn.close()
 
-    def __od_urls(self):
-        base_url = f'https://lehd.ces.census.gov/data/lodes/{self.lode_no.upper()}/{self.state}/od/'
-        urls = {}
-        for key in self.job_type:
-            url = f'{self.state}_od_{self.part}_{key}_{self.year}.csv.gz'
-            combined = base_url + url
-            urls[key] = combined
+    def __create_urls(self, table: str):
+        if table == 'od':
+            table_base = self.base_url + 'od/'
+            urls = {}
+            for key in self.job_types:
+                url = f'{self.state}_od_{self.part}_{key}_{self.year}.csv.gz'
+                combined = table_base + url
+                urls[key] = combined
+        elif table == 'rac':
+            table_base = self.base_url + 'od/rac/' + \
+                f'{self.state}_rac_{self.workforce_segment}_{self.job_type}_{self.year}.csv.gz'
+            urls = {}
+            for key in self.job_types:
+                for key2 in self.workforce_segment:
+                    url = f'{self.state}_rac_{key2}_{key}_{self.year}.csv.gz'
+                    combined = table_base + url
+                    urls[key] = combined
+        elif table == 'wac':
+            table_base = self.base_url + 'od/wac/' + \
+                f'{self.state}_wac_{self.workforce_segment}_{self.job_type}_{self.year}.csv.gz'
+            urls = {}
+            for key in self.job_types:
+                for key2 in self.workforce_segment:
+                    url = f'{self.state}_wac_{key2}_{key}_{self.year}.csv.gz'
+                    combined = table_base + url
+                    urls[key] = combined
+        else:
+            raise Exception("table must be od, rac, or wac")
         return urls
 
 
-a = PayLode(base_url, year, 'pa', 'lodes8')
-a = PayLode(base_url, year, 'nj', 'lodes8')
+a = PayLode(year, 'pa', 'lodes8')
+# a = PayLode(year, 'nj', 'lodes8')
 
 # url templates
-# f'{self.state}_rac_{self.workforce_segment}_{self.job_type}_{self.year}.csv.gz'
 # f'{self.state}_wac_{self.workforce_segment}_{self.job_type}_{self.year}.csv.gz'
