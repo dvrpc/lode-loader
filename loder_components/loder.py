@@ -5,6 +5,7 @@ import os
 import psycopg2
 from dotenv import load_dotenv
 from io import BytesIO, TextIOWrapper, StringIO
+from loder.config import job_types, workforce_types
 
 load_dotenv()
 
@@ -28,8 +29,8 @@ class PayLode:
 
         self.__create_db()
         self.__create_tables()
-        self.__populate_od_tables()
-        self.__populate_wac_tables()
+        # self.__populate_od_tables()
+        # self.__populate_wac_tables()
 
     def __db_connect(self, db: str = 'postgres'):
         conn = psycopg2.connect(
@@ -68,27 +69,6 @@ class PayLode:
             selected = {list(table.keys())[int(choice.strip(
             )) - 1]: list(table.values())[int(choice.strip()) - 1] for choice in choices}
             return selected
-
-        job_types = {
-            'JT00': 'All Jobs',
-            'JT01': 'Primary Jobs',
-            'JT02': 'All Private Jobs',
-            'JT03': 'Private Primary Jobs',
-            'JT04': 'All Federal Jobs',
-            'JT05': 'Federal Primary Jobs',
-        }
-        workforce_types = {
-            'S000': 'Total number of jobs,',
-            'SA01': 'Number of jobs of workers age 29 or younger',
-            'SA02': 'Number of jobs for workers age 30 to 54',
-            'SA03': 'Number of jobs for workers age 55 or older',
-            'SE01': 'Number of jobs with earnings $1250/month or less',
-            'SE02': 'Number of jobs with earnings $1251/month to $3333/month',
-            'SE03': 'Number of jobs with earnings greater than $3333/month',
-            'SI01': 'Number of jobs in Goods Producing industry sectors',
-            'SI02': 'Number of jobs in Trade, Transportation, and Utilities industry sectors',
-            'SI03': 'Number of jobs in All Other Services industry sectors',
-        }
 
         selected_job_types = picker(job_types)
         print(f"Selected Job Types: {selected_job_types}")
