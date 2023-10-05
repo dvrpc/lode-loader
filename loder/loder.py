@@ -252,7 +252,6 @@ class PayLode:
         """Populates the created WAC tables. Has to use temp table due to
            adding state, type, and seg info"""
 
-        # Assumes this function can create URLs for WAC as well
         urls = self.__create_urls('wac')
         cursor, conn = self.__db_connect(self.lode_no)
 
