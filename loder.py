@@ -5,7 +5,7 @@ import os
 import psycopg2
 from dotenv import load_dotenv
 from io import BytesIO, TextIOWrapper, StringIO
-from loder.config import job_types, workforce_types
+from loder_components.config import job_type
 
 load_dotenv()
 
