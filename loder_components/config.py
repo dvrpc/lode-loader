@@ -35,8 +35,8 @@ od_table = """
     createdate char(8),
     job_type char(4),
     state char(2),
-    dvrpc_reg_bool
-"""
+    dvrpc_reg bool
+    """
 
 od_temp_table = """
     SELECT
@@ -57,8 +57,7 @@ od_temp_table = """
 
 """
 
-wac_table = {
-    """
+wac_table = """
     w_geocode char(15) primary key,
     C000 numeric,
     CA01 numeric,
@@ -118,7 +117,7 @@ wac_table = {
     dvrpc_reg bool
 
     """
-}
+
 
 wac_temp_table = """
       select 
@@ -229,4 +228,52 @@ rac_table = """
     job_type char(4),
     segment char(4),
     dvrpc_reg bool
+"""
+
+rac_temp_table = """
+    
+  select 
+    h_geocode,
+    C000,
+    CA01,
+    CA02,
+    CA03,
+    CE01,
+    CE02,
+    CE03,
+    CNS01,
+    CNS02,
+    CNS03,
+    CNS04,
+    CNS05,
+    CNS06,
+    CNS07,
+    CNS08,
+    CNS09,
+    CNS10,
+    CNS11,
+    CNS12,
+    CNS13,
+    CNS14,
+    CNS15,
+    CNS16,
+    CNS17,
+    CNS18,
+    CNS19,
+    CNS20,
+    CR01,
+    CR02,
+    CR03,
+    CR04,
+    CR05,
+    CR07,
+    CT01,
+    CT02,
+    CD01,
+    CD02,
+    CD03,
+    CD04,
+    CS01,
+    CS02,
+    createdate 
 """
