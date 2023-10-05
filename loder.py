@@ -29,6 +29,7 @@ class PayLode:
         self.__create_db()
         self.__create_tables()
         self.__populate_od_tables()
+        self.__populate_wac_tables()
 
     def __db_connect(self, db: str = 'postgres'):
         conn = psycopg2.connect(
@@ -76,7 +77,7 @@ class PayLode:
             'JT04': 'All Federal Jobs',
             'JT05': 'Federal Primary Jobs',
         }
-        workforce_segments = {
+        workforce_types = {
             'S000': 'Total number of jobs,',
             'SA01': 'Number of jobs of workers age 29 or younger',
             'SA02': 'Number of jobs for workers age 30 to 54',
@@ -92,10 +93,10 @@ class PayLode:
         selected_job_types = picker(job_types)
         print(f"Selected Job Types: {selected_job_types}")
 
-        selected_workforce_segments = picker(workforce_segments)
-        print(f"Selected Workforce Segments: {selected_workforce_segments}")
+        selected_workforce_types = picker(workforce_types)
+        print(f"Selected Workforce Segments: {selected_workforce_types}")
 
-        return selected_job_types, selected_workforce_segments
+        return selected_job_types, selected_workforce_types
 
     def __create_tables(self):
         for key in self.job_types:
@@ -118,12 +119,73 @@ class PayLode:
                     createdate char(8),
                     state char(2)
                     );
+
+                create schema if not exists wac;
+                create table if not exists wac.combined_wac_table (
+                    w_geocode char(15),
+                    C000 numeric,
+                    CA01 numeric,
+                    CA02 numeric,
+                    CA03 numeric,
+                    CE01 numeric,
+                    CE02 numeric,
+                    CE03 numeric,
+                    CNS01 numeric,
+                    CNS02 numeric,
+                    CNS03 numeric,
+                    CNS04 numeric,
+                    CNS05 numeric,
+                    CNS06 numeric,
+                    CNS07 numeric,
+                    CNS08 numeric,
+                    CNS09 numeric,
+                    CNS10 numeric,
+                    CNS11 numeric,
+                    CNS12 numeric,
+                    CNS13 numeric,
+                    CNS14 numeric,
+                    CNS15 numeric,
+                    CNS16 numeric,
+                    CNS17 numeric,
+                    CNS18 numeric,
+                    CNS19 numeric,
+                    CNS20 numeric,
+                    CR01 numeric,
+                    CR02 numeric,
+                    CR03 numeric,
+                    CR04 numeric,
+                    CR05 numeric,
+                    CR07 numeric,
+                    CT01 numeric,
+                    CT02 numeric,
+                    CD01 numeric,
+                    CD02 numeric,
+                    CD03 numeric,
+                    CD04 numeric,
+                    CS01 numeric,
+                    CS02 numeric,
+                    CFA01 numeric,
+                    CFA02 numeric,
+                    CFA03 numeric,
+                    CFA04 numeric,
+                    CFA05 numeric,
+                    CFS01 numeric,
+                    CFS02 numeric,
+                    CFS03 numeric,
+                    CFS04 numeric,
+                    CFS05 numeric,
+                    createdate char(8),
+                    state char(2),
+                    type char(4),
+                    seg char(4)
+                );
+
                 """)
             cursor.close()
             conn.close()
 
     def __populate_od_tables(self):
-        """Populates the created OD tables. Has to use temp table due to 
+        """Populates the created OD tables. Has to use temp table due to
            adding state info"""
 
         urls = self.__create_urls('od')
@@ -133,6 +195,7 @@ class PayLode:
             f'populating od tables for {self.job_types} table(s)')
 
         for key, value in urls.items():
+            print(key, value)
             r = requests.get(value)
             if r.status_code == 200:
                 compressed_file = BytesIO(r.content)
@@ -142,21 +205,21 @@ class PayLode:
                 next(reader, None)  # Skip header
 
                 cursor.execute(f"""
-                    CREATE TEMP TABLE temp_table AS  
-                    SELECT 
-                        w_geocode, 
-                        h_geocode, 
-                        s000,     
-                        sa01, 
-                        sa02, 
-                        sa03, 
+                    CREATE TEMP TABLE temp_table AS
+                    SELECT
+                        w_geocode,
+                        h_geocode,
+                        s000,
+                        sa01,
+                        sa02,
+                        sa03,
                         se01,
                         se02,
                         se03,
                         si01,
                         si02,
                         si03,
-                        createdate 
+                        createdate
                     FROM od.{self.part}_origin_destination_{key} WITH NO DATA;
                 """)
 
@@ -185,6 +248,124 @@ class PayLode:
         conn.commit()
         conn.close()
 
+    def __populate_wac_tables(self):
+        """Populates the created WAC tables. Has to use temp table due to
+           adding state, type, and seg info"""
+
+        # Assumes this function can create URLs for WAC as well
+        urls = self.__create_urls('wac')
+        cursor, conn = self.__db_connect(self.lode_no)
+
+        print(f'populating wac tables for {self.job_types} table(s)')
+
+        for key, value in urls.items():
+            print(key, value)
+            r = requests.get(value)
+            last_part = value.split("/")[-1].replace(".csv.gz", "")
+            wac_type, wac_seg = self.__derive_wac_type_and_seg(last_part)
+            if r.status_code == 200:
+                compressed_file = BytesIO(r.content)
+                decompressed_file = gzip.GzipFile(fileobj=compressed_file)
+                reader = csv.reader(TextIOWrapper(
+                    decompressed_file, 'utf-8'))
+
+                next(reader, None)  # Skip header
+
+                cursor.execute("""
+                    CREATE TEMP TABLE temp_table AS
+                    select 
+                        w_geocode,
+                        C000,
+                        CA01,
+                        CA02,
+                        CA03,
+                        CE01,
+                        CE02,
+                        CE03,
+                        CNS01,
+                        CNS02,
+                        CNS03,
+                        CNS04,
+                        CNS05,
+                        CNS06,
+                        CNS07,
+                        CNS08,
+                        CNS09,
+                        CNS10,
+                        CNS11,
+                        CNS12,
+                        CNS13,
+                        CNS14,
+                        CNS15,
+                        CNS16,
+                        CNS17,
+                        CNS18,
+                        CNS19,
+                        CNS20,
+                        CR01,
+                        CR02,
+                        CR03,
+                        CR04,
+                        CR05,
+                        CR07,
+                        CT01,
+                        CT02,
+                        CD01,
+                        CD02,
+                        CD03,
+                        CD04,
+                        CS01,
+                        CS02,
+                        CFA01,
+                        CFA02,
+                        CFA03,
+                        CFA04,
+                        CFA05,
+                        CFS01,
+                        CFS02,
+                        CFS03,
+                        CFS04,
+                        CFS05,
+                        createdate
+                    FROM wac.combined_wac_table
+                    WITH NO DATA;
+                """)
+
+                buffer = StringIO()
+                for row in reader:
+                    buffer.write('\t'.join(row) + '\n')
+
+                buffer.seek(0)
+
+                sql_copy = """
+                    COPY temp_table FROM stdin WITH DELIMITER '\t'
+                """
+                cursor.copy_expert(sql=sql_copy, file=buffer)
+
+                sql_insert = f"""
+                    INSERT INTO wac.combined_wac_table
+                    SELECT *, '{self.state}', '{wac_type}', '{wac_seg}' FROM temp_table;
+                """
+                cursor.execute(sql_insert)
+
+                cursor.execute("DROP TABLE temp_table;")
+
+            else:
+                raise Exception(f'Could not download file at {value}')
+
+        cursor.close()
+        conn.commit()
+        conn.close()
+
+    def __derive_wac_type_and_seg(self, key):
+        try:
+            url_parts = key.split('_')
+            wac_seg = url_parts[2]
+            wac_type = url_parts[3]
+            return wac_type, wac_seg
+        except IndexError:
+            raise ValueError("Invalid URL format")
+
     def __create_urls(self, table: str):
         if table == 'od':
             table_base = self.base_url + 'od/'
@@ -194,20 +375,20 @@ class PayLode:
                 combined = table_base + url
                 urls[key] = combined
         elif table == 'rac':
-            table_base = self.base_url + 'od/rac/' + \
-                f'{self.state}_rac_{self.workforce_segment}_{self.job_type}_{self.year}.csv.gz'
+            table_base = self.base_url + 'rac/'
             urls = {}
             for key in self.job_types:
-                for key2 in self.workforce_segment:
+                for key2 in self.workforce_types:
+                    f'{self.state}_rac_{self.workforce_types}_{self.job_types}_{self.year}.csv.gz'
                     url = f'{self.state}_rac_{key2}_{key}_{self.year}.csv.gz'
                     combined = table_base + url
                     urls[key] = combined
         elif table == 'wac':
-            table_base = self.base_url + 'od/wac/' + \
-                f'{self.state}_wac_{self.workforce_segment}_{self.job_type}_{self.year}.csv.gz'
+            table_base = self.base_url + 'wac/'
             urls = {}
             for key in self.job_types:
-                for key2 in self.workforce_segment:
+                for key2 in self.workforce_types:
+                    f'{self.state}_wac_{self.workforce_types}_{self.job_types}_{self.year}.csv.gz'
                     url = f'{self.state}_wac_{key2}_{key}_{self.year}.csv.gz'
                     combined = table_base + url
                     urls[key] = combined
@@ -218,6 +399,3 @@ class PayLode:
 
 a = PayLode(year, 'pa', 'lodes8')
 # a = PayLode(year, 'nj', 'lodes8')
-
-# url templates
-# f'{self.state}_wac_{self.workforce_segment}_{self.job_type}_{self.year}.csv.gz'
