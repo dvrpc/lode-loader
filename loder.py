@@ -5,7 +5,8 @@ import os
 import psycopg2
 from dotenv import load_dotenv
 from io import BytesIO, TextIOWrapper, StringIO
-from loder_components.config import job_type
+from loder_components.config import (job_types, workforce_types, od_table,
+                                     od_temp_table, wac_table, wac_temp_table, rac_table, rac_temp_table)
 
 load_dotenv()
 
@@ -79,90 +80,28 @@ class PayLode:
         return selected_job_types, selected_workforce_types
 
     def __create_tables(self):
-        for key in self.job_types:
-            cursor, conn = self.__db_connect(self.lode_no)
-            cursor.execute(f"""
-                create schema if not exists od;
-                create table if not exists od.{self.part}_origin_destination_{key} (
-                    w_geocode char(15) not null,
-                    h_geocode char(15) not null,
-                    s000 int,
-                    sa01 int,
-                    sa02 int,
-                    sa03 int,
-                    se01 int,
-                    se02 int,
-                    se03 int,
-                    si01 int,
-                    si02 int,
-                    si03 int,
-                    createdate char(8),
-                    state char(2)
-                    );
+        cursor, conn = self.__db_connect(self.lode_no)
 
-                create schema if not exists wac;
-                create table if not exists wac.combined_wac_table (
-                    w_geocode char(15),
-                    C000 numeric,
-                    CA01 numeric,
-                    CA02 numeric,
-                    CA03 numeric,
-                    CE01 numeric,
-                    CE02 numeric,
-                    CE03 numeric,
-                    CNS01 numeric,
-                    CNS02 numeric,
-                    CNS03 numeric,
-                    CNS04 numeric,
-                    CNS05 numeric,
-                    CNS06 numeric,
-                    CNS07 numeric,
-                    CNS08 numeric,
-                    CNS09 numeric,
-                    CNS10 numeric,
-                    CNS11 numeric,
-                    CNS12 numeric,
-                    CNS13 numeric,
-                    CNS14 numeric,
-                    CNS15 numeric,
-                    CNS16 numeric,
-                    CNS17 numeric,
-                    CNS18 numeric,
-                    CNS19 numeric,
-                    CNS20 numeric,
-                    CR01 numeric,
-                    CR02 numeric,
-                    CR03 numeric,
-                    CR04 numeric,
-                    CR05 numeric,
-                    CR07 numeric,
-                    CT01 numeric,
-                    CT02 numeric,
-                    CD01 numeric,
-                    CD02 numeric,
-                    CD03 numeric,
-                    CD04 numeric,
-                    CS01 numeric,
-                    CS02 numeric,
-                    CFA01 numeric,
-                    CFA02 numeric,
-                    CFA03 numeric,
-                    CFA04 numeric,
-                    CFA05 numeric,
-                    CFS01 numeric,
-                    CFS02 numeric,
-                    CFS03 numeric,
-                    CFS04 numeric,
-                    CFS05 numeric,
-                    createdate char(8),
-                    state char(2),
-                    type char(4),
-                    seg char(4)
-                );
+        q1 = f"""
+            create schema if not exists od;
+            create table if not exists od.{self.part}_combined_od_table ({od_table});
+        """
 
-                """)
-            cursor.close()
-            conn.close()
+        q2 = f"""
+            create schema if not exists wac;
+            create table if not exists wac.combined_wac_table ({wac_table});
+        """
+
+        q3 = f"""
+            create schema if not exists rac;
+            create table if not exists rac.combined_rac_table ({rac_table});
+        """
+
+        cursor.execute(q1)
+        cursor.execute(q2)
+        cursor.execute(q3)
+        cursor.close()
+        conn.close()
 
     def __populate_od_tables(self):
         """Populates the created OD tables. Has to use temp table due to
