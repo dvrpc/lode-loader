@@ -20,18 +20,19 @@ year = 2020
 
 
 class PayLode:
-    def __init__(self, year: int, state: str, lode_no: str, part: str = 'main') -> None:
+    def __init__(self, year: int, state: str, lode_no: str, pick_or_all: str = 'pick') -> None:
         self.state = state
         self.lode_no = lode_no
         self.base_url = f'https://lehd.ces.census.gov/data/lodes/{self.lode_no.upper()}/{self.state}/'
+        self.pick_or_all = pick_or_all
         self.year = year
-        self.part = part
         self.job_types, self.workforce_types = self.__pick_tables()
 
+        self.__drop_db()
         self.__create_db()
         self.__create_tables()
-        self.__populate_tables('main_od')
-        self.__populate_tables('aux_od')
+        self.__populate_tables('od_main')
+        self.__populate_tables('od_aux')
         self.__populate_tables('wac')
         self.__populate_tables('rac')
 
@@ -52,22 +53,35 @@ class PayLode:
         cursor.close()
         conn.close()
 
-    def __pick_tables(self):
-        """Pick your tables"""
+    def __drop_db(self):
+        cursor, conn = self.__db_connect()
+        cursor.execute(f'drop database if exists {self.lode_no}')
 
-        def picker(table):
-            for i, (key, value) in enumerate(table.items(), 1):
-                print(f"{i}. {value} ({key})")
-            choices = input(
-                "Pick the tables you're interested in, separated by commas: ").split(',')
+    def __picker(self, table):
+        all_choices = {}
+        for i, (key, value) in enumerate(table.items(), 1):
+            print(f"{i}. {value} ({key})")
+            all_choices[key] = value
+        choices = input(
+            "Pick the tables you're interested in, separated by commas, or type 'a' for all: ").split(',')
+        if choices[0] == 'a':
+            selected = all_choices
+            return selected
+        else:
             selected = {list(table.keys())[int(choice.strip(
             )) - 1]: list(table.values())[int(choice.strip()) - 1] for choice in choices}
             return selected
 
-        selected_job_types = picker(job_types)
-        print(f"Selected Job Types: {selected_job_types}")
+    def __pick_tables(self):
+        """Pick your tables"""
+        if self.pick_or_all == 'all':
+            selected_job_types = job_types
+            selected_workforce_types = workforce_types
+        else:
+            selected_job_types = self.__picker(job_types)
+            selected_workforce_types = self.__picker(workforce_types)
 
-        selected_workforce_types = picker(workforce_types)
+        print(f"Selected Job Types: {selected_job_types}")
         print(f"Selected Workforce Segments: {selected_workforce_types}")
 
         return selected_job_types, selected_workforce_types
@@ -97,76 +111,130 @@ class PayLode:
         conn.close()
 
     def __populate_tables(self, table: str):
-        """Populates the created OD tables. Has to use temp table due to
-           adding state info"""
+        """Populates the created tables"""
 
-        job_type = None
-        segment = None
+        errors = []  # save any faulty urls here
 
-        if table == 'main_od' or table == 'aux_od':
-            temp_table = od_temp_table
-            sql_insert = f"""
-                INSERT INTO od.combined_od_table 
-                SELECT *, '{job_type}', '{self.state}', 'false', '{table}' FROM temp_table;
+        def handle_sql_insert(value):
+            last_part = value.split("/")[-1].replace(".csv.gz", "")
+            job_type, segment = self.__derive_type_and_seg(last_part)
+
+            if table in ['rac', 'wac']:
+                return f"""
+                    INSERT INTO {table}.combined_{table}_table
+                    SELECT *, '{self.state}', '{job_type}', '{segment}' FROM temp_table;
                 """
+            elif table in ['od_main', 'od_aux']:
+                return f"""
+                    INSERT INTO od.combined_od_table
+                    SELECT *, '{job_type}', '{self.state}', 'false', '{table}' FROM temp_table;
+                """
+            else:
+                return None
+
+        if table == 'od_main' or table == 'od_aux':
+            temp_table = od_temp_table
         elif table == 'rac':
             temp_table = rac_temp_table
-            sql_insert = f"""
-                INSERT INTO rac.combined_rac_table
-                SELECT *, '{self.state}', '{job_type}', '{segment}' FROM temp_table;
-            """
         elif table == 'wac':
             temp_table = wac_temp_table
-            sql_insert = f"""
-                INSERT INTO wac.combined_wac_table
-                SELECT *, '{self.state}', '{job_type}', '{segment}' FROM temp_table;
-            """
         else:
-            raise Exception("table must be main_od, aux_od, rac, or wac")
+            raise Exception("table must be od_main, od_aux, rac, or wac")
 
         urls = self.__create_urls(f'{table}')
         cursor, conn = self.__db_connect(self.lode_no)
 
-        print(f'populating {table} table, please wait...')
+        # Check if the dictionary is nested
+        if isinstance(urls, dict) and isinstance(next(iter(urls.values())), dict):
+            iter_keys = urls.items()
+        else:
+            iter_keys = [(None, value)
+                         for value in urls.values()]  # For flat dictionaries
 
-        for key, value in urls.items():
-            last_part = value.split("/")[-1].replace(".csv.gz", "")
-            job_type, segment = self.__derive_type_and_seg(last_part)
-            print(key, value)
-            r = requests.get(value)
-            if r.status_code == 200:
-                compressed_file = BytesIO(r.content)
-                decompressed_file = gzip.GzipFile(fileobj=compressed_file)
-                reader = csv.reader(TextIOWrapper(decompressed_file, 'utf-8'))
+        for outer_key, inner_dict in iter_keys:
+            if outer_key is not None:  # For nested dictionaries
+                inner_loop = inner_dict.items()
+            else:  # For flat dictionaries
+                inner_loop = [(None, inner_dict)]
 
-                next(reader, None)  # Skip header
+            for inner_key, value in inner_loop:
+                print(f'processing the {self.state} csv from {value}...')
+                sql_insert = handle_sql_insert(value)
+                if sql_insert:
+                    r = requests.get(value)
+                    if r.status_code == 200:
+                        compressed_file = BytesIO(r.content)
+                        decompressed_file = gzip.GzipFile(
+                            fileobj=compressed_file)
+                        reader = csv.reader(TextIOWrapper(
+                            decompressed_file, 'utf-8'))
 
-                cursor.execute(f"""
-                    CREATE TEMP TABLE temp_table AS
-                    {temp_table}
-                """)
+                        next(reader, None)  # Skip header
 
-                buffer = StringIO()
-                for row in reader:
-                    buffer.write('\t'.join(row) + '\n')
+                        cursor.execute(f"""
+                            CREATE TEMP TABLE temp_table AS
+                            {temp_table}
+                        """)
 
-                buffer.seek(0)
+                        buffer = StringIO()
+                        for row in reader:
+                            buffer.write('\t'.join(row) + '\n')
 
-                sql_copy = """
-                    COPY temp_table FROM stdin WITH DELIMITER '\t'
-                """
-                cursor.copy_expert(sql=sql_copy, file=buffer)
+                        buffer.seek(0)
 
-                cursor.execute(sql_insert)
+                        sql_copy = """
+                            COPY temp_table FROM stdin WITH DELIMITER '\t'
+                        """
+                        cursor.copy_expert(sql=sql_copy, file=buffer)
 
-                cursor.execute("DROP TABLE temp_table;")
+                        cursor.execute(sql_insert)
 
-            else:
-                raise Exception(f'Could not download file at {value}')
+                        cursor.execute("DROP TABLE temp_table;")
+
+                    else:
+                        errors.append(value)
 
         cursor.close()
         conn.commit()
         conn.close()
+        if len(errors) == 0:
+            print(f'all {table} tables imported successfully!')
+        elif len(errors) > 0:
+            print(
+                f'the following URLS might not exist: {errors}')
+            for error in errors:
+                error = error.split('_')
+                job = error[3]
+                seg = error[2]
+                print(
+                    f"there may be no '{job_types[job]}' in the '{workforce_types[seg]}' segment")
+            print(
+                'you can check to see if the tables actually exist at the endpoints below:')
+            print(
+                f'https://lehd.ces.census.gov/data/lodes/LODES8/{self.state}/od/')
+            print(
+                f'https://lehd.ces.census.gov/data/lodes/LODES8/{self.state}/rac/')
+            print(
+                f'https://lehd.ces.census.gov/data/lodes/LODES8/{self.state}/wac/')
+            print(
+                f'the rest of the {table} tables were imported successfully.')
+
+    def handle_sql_insert(value, table, derive_type_and_seg_func, state):
+        last_part = value.split("/")[-1].replace(".csv.gz", "")
+        job_type, segment = derive_type_and_seg_func(last_part)
+
+        if table in ['rac', 'wac']:
+            return f"""
+                INSERT INTO {table}.combined_{table}_table
+                SELECT *, '{state}', '{job_type}', '{segment}' FROM temp_table;
+            """
+        elif table in ['od_main', 'od_aux']:
+            return f"""
+                INSERT INTO od.combined_od_table
+                SELECT *, '{job_type}', '{state}', 'false', '{table}' FROM temp_table;
+            """
+        else:
+            return None
 
     def __derive_type_and_seg(self, key):
         try:
@@ -178,43 +246,28 @@ class PayLode:
             raise ValueError("Invalid URL format")
 
     def __create_urls(self, table: str):
-        if table == 'main_od':
+        if table == 'od_aux' or table == 'od_main':
             table_base = self.base_url + 'od/'
             urls = {}
             for key in self.job_types:
-                url = f'{self.state}_od_main_{key}_{self.year}.csv.gz'
+                url = f'{self.state}_{table}_{key}_{self.year}.csv.gz'
                 combined = table_base + url
                 urls[key] = combined
-        elif table == 'aux_od':
-            table_base = self.base_url + 'od/'
+        elif table == 'rac' or table == 'wac':
+            table_base = self.base_url + f'{table}/'
             urls = {}
             for key in self.job_types:
-                url = f'{self.state}_od_aux_{key}_{self.year}.csv.gz'
-                combined = table_base + url
-                urls[key] = combined
-        elif table == 'rac':
-            table_base = self.base_url + 'rac/'
-            urls = {}
-            for key in self.job_types:
+                urls[key] = {}
                 for key2 in self.workforce_types:
-                    f'{self.state}_rac_{self.workforce_types}_{self.job_types}_{self.year}.csv.gz'
-                    url = f'{self.state}_rac_{key2}_{key}_{self.year}.csv.gz'
+                    url = f'{self.state}_{table}_{key2}_{key}_{self.year}.csv.gz'
                     combined = table_base + url
-                    urls[key] = combined
-        elif table == 'wac':
-            table_base = self.base_url + 'wac/'
-            urls = {}
-            for key in self.job_types:
-                for key2 in self.workforce_types:
-                    f'{self.state}_wac_{self.workforce_types}_{self.job_types}_{self.year}.csv.gz'
-                    url = f'{self.state}_wac_{key2}_{key}_{self.year}.csv.gz'
-                    combined = table_base + url
-                    urls[key] = combined
+                    urls[key][key2] = combined
         else:
-            raise Exception("table must be main_od, aux_od, rac, or wac")
+            raise Exception("table must be od_main, od_aux, rac, or wac")
         return urls
 
 
 if __name__ == "__main__":
-    a = PayLode(year, 'pa', 'lodes8')
-    # a = PayLode(year, 'nj', 'lodes8')
+    # for state in ['pa', 'nj']:
+    # PayLode(2020, state, 'lodes8', 'all')
+    PayLode(2020, 'nj', 'lodes8')
