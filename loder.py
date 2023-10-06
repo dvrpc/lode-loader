@@ -268,6 +268,5 @@ class PayLode:
 
 
 if __name__ == "__main__":
-    # for state in ['pa', 'nj']:
-    # PayLode(2020, state, 'lodes8', 'all')
-    PayLode(2020, 'nj', 'lodes8')
+    for state in ['pa', 'nj']:
+        PayLode(2020, state, 'lodes8', 'all')
