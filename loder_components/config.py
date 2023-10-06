@@ -35,7 +35,8 @@ od_table = """
     createdate char(8),
     job_type char(4),
     state char(2),
-    dvrpc_reg bool
+    dvrpc_reg bool,
+    scope varchar
     """
 
 od_temp_table = """
@@ -53,12 +54,12 @@ od_temp_table = """
         si02,
         si03,
         createdate
-    FROM od.{self.part}_origin_destination_{key} WITH NO DATA;
+    FROM od.combined_od_table WITH NO DATA;
 
 """
 
 wac_table = """
-    w_geocode char(15) primary key,
+    w_geocode char(15),
     C000 numeric,
     CA01 numeric,
     CA02 numeric,
@@ -114,7 +115,7 @@ wac_table = """
     state char(2),
     job_type char(4),
     segment char(4),
-    dvrpc_reg bool
+    dvrpc_reg bool 
 
     """
 
@@ -181,7 +182,7 @@ wac_temp_table = """
 
 
 rac_table = """
-    h_geocode char(15) primary key,
+    h_geocode char(15),
     C000 numeric,
     CA01 numeric,
     CA02 numeric,
@@ -276,4 +277,6 @@ rac_temp_table = """
     CS01,
     CS02,
     createdate 
+    FROM rac.combined_rac_table
+    WITH NO DATA;
 """

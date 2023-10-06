@@ -6,7 +6,8 @@ import psycopg2
 from dotenv import load_dotenv
 from io import BytesIO, TextIOWrapper, StringIO
 from loder_components.config import (job_types, workforce_types, od_table,
-                                     od_temp_table, wac_table, wac_temp_table, rac_table, rac_temp_table)
+                                     od_temp_table, wac_table, wac_temp_table,
+                                     rac_table, rac_temp_table)
 
 load_dotenv()
 
@@ -15,7 +16,6 @@ PORT = os.getenv("PORT")
 UN = os.getenv("UN")
 PW = os.getenv("PW")
 
-base_url = 'https://lehd.ces.census.gov/data/lodes/LODES8/'
 year = 2020
 
 
@@ -30,8 +30,10 @@ class PayLode:
 
         self.__create_db()
         self.__create_tables()
-        # self.__populate_od_tables()
-        # self.__populate_wac_tables()
+        self.__populate_tables('main_od')
+        self.__populate_tables('aux_od')
+        self.__populate_tables('wac')
+        self.__populate_tables('rac')
 
     def __db_connect(self, db: str = 'postgres'):
         conn = psycopg2.connect(
@@ -49,15 +51,6 @@ class PayLode:
             cursor.execute(f'create database {self.lode_no}')
         cursor.close()
         conn.close()
-
-    # def __drop_tables(self):
-    #     cursor, conn = self.__db_connect(self.lode_no)
-    #     for key in self.job_type:
-    #         cursor.execute(
-    #             f"drop table if exists od.{self.part}_origin_destination_{key}")
-    #     cursor.close()
-    #     conn.commit()
-    #     conn.close()
 
     def __pick_tables(self):
         """Pick your tables"""
@@ -84,7 +77,7 @@ class PayLode:
 
         q1 = f"""
             create schema if not exists od;
-            create table if not exists od.{self.part}_combined_od_table ({od_table});
+            create table if not exists od.combined_od_table ({od_table});
         """
 
         q2 = f"""
@@ -103,17 +96,42 @@ class PayLode:
         cursor.close()
         conn.close()
 
-    def __populate_od_tables(self):
+    def __populate_tables(self, table: str):
         """Populates the created OD tables. Has to use temp table due to
            adding state info"""
 
-        urls = self.__create_urls('od')
+        job_type = None
+        segment = None
+
+        if table == 'main_od' or table == 'aux_od':
+            temp_table = od_temp_table
+            sql_insert = f"""
+                INSERT INTO od.combined_od_table 
+                SELECT *, '{job_type}', '{self.state}', 'false', '{table}' FROM temp_table;
+                """
+        elif table == 'rac':
+            temp_table = rac_temp_table
+            sql_insert = f"""
+                INSERT INTO rac.combined_rac_table
+                SELECT *, '{self.state}', '{job_type}', '{segment}' FROM temp_table;
+            """
+        elif table == 'wac':
+            temp_table = wac_temp_table
+            sql_insert = f"""
+                INSERT INTO wac.combined_wac_table
+                SELECT *, '{self.state}', '{job_type}', '{segment}' FROM temp_table;
+            """
+        else:
+            raise Exception("table must be main_od, aux_od, rac, or wac")
+
+        urls = self.__create_urls(f'{table}')
         cursor, conn = self.__db_connect(self.lode_no)
 
-        print(
-            f'populating od tables for {self.job_types} table(s)')
+        print(f'populating {table} table, please wait...')
 
         for key, value in urls.items():
+            last_part = value.split("/")[-1].replace(".csv.gz", "")
+            job_type, segment = self.__derive_type_and_seg(last_part)
             print(key, value)
             r = requests.get(value)
             if r.status_code == 200:
@@ -125,21 +143,7 @@ class PayLode:
 
                 cursor.execute(f"""
                     CREATE TEMP TABLE temp_table AS
-                    SELECT
-                        w_geocode,
-                        h_geocode,
-                        s000,
-                        sa01,
-                        sa02,
-                        sa03,
-                        se01,
-                        se02,
-                        se03,
-                        si01,
-                        si02,
-                        si03,
-                        createdate
-                    FROM od.{self.part}_origin_destination_{key} WITH NO DATA;
+                    {temp_table}
                 """)
 
                 buffer = StringIO()
@@ -153,9 +157,6 @@ class PayLode:
                 """
                 cursor.copy_expert(sql=sql_copy, file=buffer)
 
-                sql_insert = f"""
-                    INSERT INTO od.{self.part}_origin_destination_{key} SELECT *, '{self.state}' FROM temp_table;
-                """
                 cursor.execute(sql_insert)
 
                 cursor.execute("DROP TABLE temp_table;")
@@ -275,21 +276,28 @@ class PayLode:
         conn.commit()
         conn.close()
 
-    def __derive_wac_type_and_seg(self, key):
+    def __derive_type_and_seg(self, key):
         try:
             url_parts = key.split('_')
-            wac_seg = url_parts[2]
-            wac_type = url_parts[3]
-            return wac_type, wac_seg
+            type = url_parts[3]
+            seg = url_parts[2]
+            return type, seg
         except IndexError:
             raise ValueError("Invalid URL format")
 
     def __create_urls(self, table: str):
-        if table == 'od':
+        if table == 'main_od':
             table_base = self.base_url + 'od/'
             urls = {}
             for key in self.job_types:
-                url = f'{self.state}_od_{self.part}_{key}_{self.year}.csv.gz'
+                url = f'{self.state}_od_main_{key}_{self.year}.csv.gz'
+                combined = table_base + url
+                urls[key] = combined
+        elif table == 'aux_od':
+            table_base = self.base_url + 'od/'
+            urls = {}
+            for key in self.job_types:
+                url = f'{self.state}_od_aux_{key}_{self.year}.csv.gz'
                 combined = table_base + url
                 urls[key] = combined
         elif table == 'rac':
@@ -311,9 +319,10 @@ class PayLode:
                     combined = table_base + url
                     urls[key] = combined
         else:
-            raise Exception("table must be od, rac, or wac")
+            raise Exception("table must be main_od, aux_od, rac, or wac")
         return urls
 
 
-a = PayLode(year, 'pa', 'lodes8')
-# a = PayLode(year, 'nj', 'lodes8')
+if __name__ == "__main__":
+    a = PayLode(year, 'pa', 'lodes8')
+    # a = PayLode(year, 'nj', 'lodes8')
