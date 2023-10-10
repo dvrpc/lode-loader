@@ -14,6 +14,7 @@ from loder_components.config import (
     wac_temp_table,
     rac_table,
     rac_temp_table,
+    xwalk,
 )
 
 load_dotenv()
@@ -122,10 +123,15 @@ class PayLode:
             create schema if not exists rac;
             create table if not exists rac.combined_rac_table ({rac_table});
         """
+        q4 = f"""
+            create schema if not exists geo_xwalk;
+            create table if not exists geo_xwalk.xwalk ({xwalk});
+        """
 
         cursor.execute(q1)
         cursor.execute(q2)
         cursor.execute(q3)
+        cursor.execute(q4)
         cursor.close()
         conn.close()
 
