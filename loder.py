@@ -128,10 +128,8 @@ class PayLode:
             create table if not exists geo_xwalk.xwalk ({xwalk});
         """
 
-        cursor.execute(q1)
-        cursor.execute(q2)
-        cursor.execute(q3)
-        cursor.execute(q4)
+        for value in [q1, q2, q3, q4]:
+            cursor.execute(value)
         cursor.close()
         conn.close()
 
