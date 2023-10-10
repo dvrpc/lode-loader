@@ -27,6 +27,8 @@ year = 2020
 
 
 class PayLode:
+    """The PayLode class pulls RAC, WAC, and OD tables from the Census LEHD into a Postgres db."""
+
     def __init__(
         self, year: int, state: str, lode_no: str, pick_or_all: str = "pick"
     ) -> None:
@@ -46,12 +48,14 @@ class PayLode:
         self.__populate_tables("rac")
 
     def __db_connect(self, db: str = "postgres"):
+        """Boilerplate for connection params"""
         conn = psycopg2.connect(dbname=db, user=UN, password=PW, host=HOST, port=PORT)
         conn.autocommit = True
         cursor = conn.cursor()
         return cursor, conn
 
     def __create_db(self):
+        """Create the DB. name is the lode # you're using"""
         cursor, conn = self.__db_connect()
         cursor.execute(f"select 1 from pg_database WHERE datname='{self.lode_no}'")
         exists = cursor.fetchone()
@@ -61,10 +65,12 @@ class PayLode:
         conn.close()
 
     def __drop_db(self):
+        """Drops the DB."""
         cursor, conn = self.__db_connect()
         cursor.execute(f"drop database if exists {self.lode_no}")
 
     def __picker(self, table):
+        """Lets you input the tables you're interested in"""
         all_choices = {}
         for i, (key, value) in enumerate(table.items(), 1):
             print(f"{i}. {value} ({key})")
@@ -85,7 +91,7 @@ class PayLode:
             return selected
 
     def __pick_tables(self):
-        """Pick your tables"""
+        """Pick your tables. This is optional"""
         if self.pick_or_all == "all":
             selected_job_types = job_types
             selected_workforce_types = workforce_types
@@ -99,6 +105,7 @@ class PayLode:
         return selected_job_types, selected_workforce_types
 
     def __create_tables(self):
+        """Sets up required tables and schemas."""
         cursor, conn = self.__db_connect(self.lode_no)
 
         q1 = f"""
@@ -123,7 +130,7 @@ class PayLode:
         conn.close()
 
     def __populate_tables(self, table: str):
-        """Populates the created tables"""
+        """Populates the created tables with data. Prints any bad URLS (usually just places w/out data)"""
 
         errors = []  # save any faulty urls here
 
@@ -230,6 +237,7 @@ class PayLode:
             print(f"the rest of the {table} tables were imported successfully.")
 
     def handle_sql_insert(value, table, derive_type_and_seg_func, state):
+        """Paramaterized queries to insert data into table"""
         last_part = value.split("/")[-1].replace(".csv.gz", "")
         job_type, segment = derive_type_and_seg_func(last_part)
 
@@ -247,6 +255,7 @@ class PayLode:
             return None
 
     def __derive_type_and_seg(self, key):
+        """Returns the Job Type or Workforce Segmentation from the URL (key)"""
         try:
             url_parts = key.split("_")
             type = url_parts[3]
@@ -256,6 +265,7 @@ class PayLode:
             raise ValueError("Invalid URL format")
 
     def __create_urls(self, table: str):
+        """Builds URLS based on needed params to access csv.gz endpoints"""
         if table == "od_aux" or table == "od_main":
             table_base = self.base_url + "od/"
             urls = {}
