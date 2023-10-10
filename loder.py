@@ -15,6 +15,7 @@ from loder_components.config import (
     rac_table,
     rac_temp_table,
     xwalk,
+    xwalk_temp_table,
 )
 
 load_dotenv()
@@ -40,13 +41,14 @@ class PayLode:
         self.year = year
         self.job_types, self.workforce_types = self.__pick_tables()
 
-        self.__drop_db()
+        # self.__drop_db() # handy to have while testing
         self.__create_db()
         self.__create_tables()
         self.__populate_tables("od_main")
         self.__populate_tables("od_aux")
         self.__populate_tables("wac")
         self.__populate_tables("rac")
+        self.__populate_tables("xwalk")
 
     def __db_connect(self, db: str = "postgres"):
         """Boilerplate for connection params"""
@@ -152,6 +154,11 @@ class PayLode:
                     INSERT INTO od.combined_od_table
                     SELECT *, '{job_type}', '{self.state}', 'false', '{table}' FROM temp_table;
                 """
+            elif table in ["xwalk"]:
+                return f"""
+                INSERT INTO geo_xwalk.{table}
+                SELECT * from temp_table;
+                """
             else:
                 return None
 
@@ -161,6 +168,8 @@ class PayLode:
             temp_table = rac_temp_table
         elif table == "wac":
             temp_table = wac_temp_table
+        elif table == "xwalk":
+            temp_table = xwalk_temp_table
         else:
             raise Exception("table must be od_main, od_aux, rac, or wac")
 
@@ -260,13 +269,19 @@ class PayLode:
 
     def __derive_type_and_seg(self, key):
         """Returns the Job Type or Workforce Segmentation from the URL (key)"""
-        try:
-            url_parts = key.split("_")
-            type = url_parts[3]
-            seg = url_parts[2]
+        print(key)
+        if key == f"{self.state}_xwalk":
+            type = "xwalk"
+            seg = "xwalk"
             return type, seg
-        except IndexError:
-            raise ValueError("Invalid URL format")
+        else:
+            try:
+                url_parts = key.split("_")
+                type = url_parts[3]
+                seg = url_parts[2]
+                return type, seg
+            except IndexError:
+                raise ValueError("Invalid URL format")
 
     def __create_urls(self, table: str):
         """Builds URLS based on needed params to access csv.gz endpoints"""
@@ -286,8 +301,12 @@ class PayLode:
                     url = f"{self.state}_{table}_{key2}_{key}_{self.year}.csv.gz"
                     combined = table_base + url
                     urls[key][key2] = combined
+        elif table == "xwalk":
+            table_base = self.base_url + f"{self.state}_xwalk.csv.gz"
+            urls = {}
+            urls["xwalk_url"] = table_base
         else:
-            raise Exception("table must be od_main, od_aux, rac, or wac")
+            raise Exception("table must be od_main, od_aux, rac, wac, or xwalk")
         return urls
 
 

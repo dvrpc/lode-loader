@@ -297,6 +297,7 @@ xwalk = """
     zcta char(5),
     zctaname char(100),
     stplc char(7),
+    stplcname char(100),
     ctycsub char(10),
     ctycsubname char(100),
     stcd116 char(4),
@@ -325,3 +326,10 @@ xwalk = """
     blklondd numeric,
     createdate char(8)
     """
+
+
+xwalk_temp_table = """
+    SELECT *
+    FROM geo_xwalk.xwalk WITH NO DATA;
+
+"""
