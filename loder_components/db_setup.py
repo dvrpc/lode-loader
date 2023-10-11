@@ -1,9 +1,6 @@
 import requests
 import gzip
 import csv
-import os
-import psycopg2
-from dotenv import load_dotenv
 from io import BytesIO, TextIOWrapper, StringIO
 from .config import (
     job_types,
@@ -18,13 +15,8 @@ from .config import (
     xwalk_temp_table,
     dvrpc_counties,
 )
+from .db_update import db_connect
 
-load_dotenv()
-
-HOST = os.getenv("HOST")
-PORT = os.getenv("PORT")
-UN = os.getenv("UN")
-PW = os.getenv("PW")
 
 year = 2020
 
@@ -52,17 +44,9 @@ class PayLode:
         self.__populate_tables("rac")
         self.__populate_tables("xwalk")
 
-    def __db_connect(self, db: str = "postgres"):
-        """Boilerplate for connection params"""
-        conn = psycopg2.connect(
-            dbname=db, user=UN, password=PW, host=HOST, port=PORT)
-        conn.autocommit = True
-        cursor = conn.cursor()
-        return cursor, conn
-
     def __create_db(self):
         """Create the DB. name is the lode # you're using"""
-        cursor, conn = self.__db_connect()
+        cursor, conn = db_connect()
         cursor.execute(
             f"select 1 from pg_database WHERE datname='{self.lode_no}'")
         exists = cursor.fetchone()
@@ -73,7 +57,7 @@ class PayLode:
 
     def __drop_db(self):
         """Drops the DB."""
-        cursor, conn = self.__db_connect()
+        cursor, conn = db_connect()
         cursor.execute(f"drop database if exists {self.lode_no}")
 
     def __picker(self, table):
@@ -113,7 +97,7 @@ class PayLode:
 
     def __create_tables(self):
         """Sets up required tables and schemas."""
-        cursor, conn = self.__db_connect(self.lode_no)
+        cursor, conn = db_connect(self.lode_no)
 
         q1 = f"""
             create schema if not exists od;
@@ -178,7 +162,7 @@ class PayLode:
             raise Exception("table must be od_main, od_aux, rac, or wac")
 
         urls = self.__create_urls(f"{table}")
-        cursor, conn = self.__db_connect(self.lode_no)
+        cursor, conn = db_connect(self.lode_no)
 
         # Check if the dictionary is nested
         if isinstance(urls, dict) and isinstance(next(iter(urls.values())), dict):
