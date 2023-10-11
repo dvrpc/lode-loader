@@ -333,3 +333,15 @@ xwalk_temp_table = """
     FROM geo_xwalk.xwalk WITH NO DATA;
 
 """
+
+dvrpc_counties = [
+    'Bucks County, PA',
+    'Chester County, PA',
+    'Delaware County, PA',
+    'Montgomery County, PA',
+    'Philadelphia County, PA',
+    'Burlington County, NJ',
+    'Camden County, NJ',
+    'Gloucester County, NJ',
+    'Mercer County, NJ',
+]
