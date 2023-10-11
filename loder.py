@@ -52,7 +52,8 @@ class PayLode:
 
     def __db_connect(self, db: str = "postgres"):
         """Boilerplate for connection params"""
-        conn = psycopg2.connect(dbname=db, user=UN, password=PW, host=HOST, port=PORT)
+        conn = psycopg2.connect(
+            dbname=db, user=UN, password=PW, host=HOST, port=PORT)
         conn.autocommit = True
         cursor = conn.cursor()
         return cursor, conn
@@ -60,7 +61,8 @@ class PayLode:
     def __create_db(self):
         """Create the DB. name is the lode # you're using"""
         cursor, conn = self.__db_connect()
-        cursor.execute(f"select 1 from pg_database WHERE datname='{self.lode_no}'")
+        cursor.execute(
+            f"select 1 from pg_database WHERE datname='{self.lode_no}'")
         exists = cursor.fetchone()
         if not exists:
             cursor.execute(f"create database {self.lode_no}")
@@ -197,8 +199,10 @@ class PayLode:
                     r = requests.get(value)
                     if r.status_code == 200:
                         compressed_file = BytesIO(r.content)
-                        decompressed_file = gzip.GzipFile(fileobj=compressed_file)
-                        reader = csv.reader(TextIOWrapper(decompressed_file, "utf-8"))
+                        decompressed_file = gzip.GzipFile(
+                            fileobj=compressed_file)
+                        reader = csv.reader(TextIOWrapper(
+                            decompressed_file, "utf-8"))
 
                         next(reader, None)  # Skip header
 
@@ -244,10 +248,14 @@ class PayLode:
             print(
                 "you can check to see if the tables actually exist at the endpoints below:"
             )
-            print(f"https://lehd.ces.census.gov/data/lodes/LODES8/{self.state}/od/")
-            print(f"https://lehd.ces.census.gov/data/lodes/LODES8/{self.state}/rac/")
-            print(f"https://lehd.ces.census.gov/data/lodes/LODES8/{self.state}/wac/")
-            print(f"the rest of the {table} tables were imported successfully.")
+            print(
+                f"https://lehd.ces.census.gov/data/lodes/LODES8/{self.state}/od/")
+            print(
+                f"https://lehd.ces.census.gov/data/lodes/LODES8/{self.state}/rac/")
+            print(
+                f"https://lehd.ces.census.gov/data/lodes/LODES8/{self.state}/wac/")
+            print(
+                f"the rest of the {table} tables were imported successfully.")
 
     def handle_sql_insert(value, table, derive_type_and_seg_func, state):
         """Paramaterized queries to insert data into table"""
@@ -306,7 +314,8 @@ class PayLode:
             urls = {}
             urls["xwalk_url"] = table_base
         else:
-            raise Exception("table must be od_main, od_aux, rac, wac, or xwalk")
+            raise Exception(
+                "table must be od_main, od_aux, rac, wac, or xwalk")
         return urls
 
 
