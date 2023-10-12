@@ -1,6 +1,7 @@
 import psycopg2
 import os
 from dotenv import load_dotenv
+from .config import naics_cols
 
 load_dotenv()
 
@@ -91,5 +92,91 @@ def build_regional_index(lode_no: str):
         print(f"building regional index for {table} table...")
         q = f"""create index if not exists regional_{table}_index on {table}.combined_{table}_table(dvrpc_reg);"""
         cursor.execute(q)
+    cursor.close()
+    conn.close()
+
+
+def add_dvrpc_cols(lode_no: str, industry_threshold: float = 0.5):
+    """Adds a few columns to the WAC and RAC tables for further DVRPC analysis.
+    Populates the columns using other functions."""
+    cursor, conn = db_connect(lode_no)
+
+    print(
+        f"creating and populating dvrpc-created columns for {industry_threshold} industry threshold"
+    )
+
+    cols = {
+        "dvrpc_block_significant_industry": "allnaics",
+        "dvrpc_above_quartile_55": "ca03",
+        "dvrpc_above_quartile_low_pay": "ce01",
+        "dvrpc_above_quartile_no_hs": "cd01",
+        "dvrpc_above_quartile_small_biz": "cfs01",
+        "dvrpc_above_quartile_large_biz": "cfs05",
+    }
+    for key, value in cols.items():
+        q = f"""alter table wac.combined_wac_table
+            add column if not exists {value} bool default false;"""
+        cursor.execute(q)
+        if value == "allnaics":
+            significant_industry(lode_no, industry_threshold)
+        else:
+            dvrpc_quartiles(lode_no, value, key)  # 55+ workers
+
+
+def significant_industry(lode_no: str, threshold: float = 0.75):
+    """Tags true/false if an industry makes up more than threshold of the jobs in a block (default 75%)"""
+    cursor, conn = db_connect(lode_no)
+    naics_str = " ".join([str(item + "+") for item in naics_cols])
+    naics_str = naics_str.rstrip("+")
+    query_blocks = []  # holds or clauses that are dynamically built below
+    for index, value in enumerate(naics_cols):
+        if index == 0:
+            or_where = ""
+        else:
+            or_where = "or"
+
+        or_clause = f"{or_where} {value} * 1.0 / ({naics_str}) > {threshold} \n\t"
+        query_blocks.append(or_clause)
+
+    q = f"""
+        update wac.combined_wac_table
+        set dvrpc_block_significant_industry = true
+        where ({naics_str}) != 0 and 
+        dvrpc_reg = true and (
+        """
+    for value in query_blocks:
+        q = q + value
+    q = q + ");"
+    cursor.execute(q)
+    cursor.close()
+    conn.close()
+
+
+def dvrpc_quartiles(lode_no: str, col: str, boolcol: str, quartile: int = 4):
+    """Returns the indicated quartile of the dvrpc region for a given column
+    Top 75% = quartile 4. Note that 0 values are excluded.
+    Example: top 75% of blocks with small biz versus top 75 of all blocks"""
+    cursor, conn = db_connect(lode_no)
+    print(f"updating the {boolcol} column..")
+
+    q = f"""
+        with ranked_blocks as (
+          select *, ntile(4) over (order by a.{col}) as quartile
+          from wac.combined_wac_table a 
+          where dvrpc_reg = true
+          and {col} != 0
+        ),
+        minmax as (
+            select min({col}) as min_value,
+                max({col}) as max_value
+                from ranked_blocks
+                where quartile = 4
+        )
+        update wac.combined_wac_table
+        set {boolcol} = true 
+        from minmax
+        where {col} >= minmax.min_value and {col} <= minmax.max_value
+        """
+    cursor.execute(q)
     cursor.close()
     conn.close()
