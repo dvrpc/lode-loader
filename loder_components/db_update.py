@@ -10,7 +10,7 @@ UN = os.getenv("UN")
 PW = os.getenv("PW")
 
 
-def db_connect(self, db: str = "postgres"):
+def db_connect(db: str = "postgres"):
     """Boilerplate for connection params"""
     conn = psycopg2.connect(
         dbname=db, user=UN, password=PW, host=HOST, port=PORT)
@@ -39,35 +39,44 @@ def build_index(lode_no: str, counties: list, year: int):
     conn.close()
 
 
-def __local_flag(self):
+def local_flag(lode_no: str, year: int, counties: list):
     """Sets the regional identifies column (dvrpc_reg) to true for the counties
        list passed into the class (default is dvrpc counties). For OD, the the flag
        is set for either/both home/work blocks where the block is in self.counties."""
-
-    cursor, conn = self.__db_connect(self.lode_no)
+    cursor, conn = db_connect(lode_no)
     tables = ['rac', 'wac', 'od']
     cols = ['w_geocode', 'h_geocode']
     for table in tables:
-        if table == 'rac':
-            census_block_col = cols[1]
-            where = f'where {table}.combined_{table}_table.{census_block_col} = geo_xwalk.xwalk.tabblk{self.year}'
-        elif table == 'wac':
-            census_block_col = cols[0]
-            where = f'where {table}.combined_{table}_table.{census_block_col} = geo_xwalk.xwalk.tabblk{self.year}'
+        init_q = f"update {table}.combined_{table}_table SET dvrpc_reg = false"
+        cursor.execute(init_q)
+        if table == 'rac' or table == 'wac':
+            census_block_col = cols[1] if table == 'rac' else cols[0]
+            q = f"""update {table}.combined_{table}_table
+                    set dvrpc_reg = case
+                      when xwalk.ctyname = ANY(%(counties)s) then true
+                      else false
+                    end
+                    from geo_xwalk.xwalk
+                    where {table}.combined_{table}_table.{census_block_col} = geo_xwalk.xwalk.tabblk{year}
+                    and xwalk.ctyname = ANY(%(counties)s)
+                """
+            print(f'updating dvrpc_reg column in {table}...')
+            cursor.execute(q, {'counties': counties})
+
         elif table == 'od':
-            where = f"""where {table}.combined_{table}_table.{cols[0]} = geo_xwalk.xwalk.tabblk{self.year}
-               or {table}.combined_{table}_table.{cols[1]} = geo_xwalk.xwalk.tabblk{self.year} """
-
-        print(f'updating dvrpc_reg column in {table}...')
-
-        q = f"""update {table}.combined_{table}_table
-       set dvrpc_reg = true
-       from geo_xwalk.xwalk
-       {where}
-       and xwalk.ctyname = ANY(%(counties)s)
-    """
-
-        cursor.execute(q, {'counties': self.counties})
+            for col in cols:
+                print(
+                    f'updating dvrpc_reg column in {table} for column {col}...')
+                q = f"""update {table}.combined_{table}_table
+                        set dvrpc_reg = case
+                          when xwalk.ctyname = ANY(%(counties)s) then true
+                          else false
+                        end                
+                        from geo_xwalk.xwalk
+                        where {table}.combined_{table}_table.{col} = geo_xwalk.xwalk.tabblk{year}
+                        and xwalk.ctyname = ANY(%(counties)s)
+                    """
+                cursor.execute(q, {'counties': counties})
 
     cursor.close()
     conn.close()
