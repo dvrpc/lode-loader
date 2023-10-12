@@ -115,7 +115,9 @@ def add_dvrpc_cols(lode_no: str, industry_threshold: float = 0.5):
     }
     for key, value in cols.items():
         q = f"""alter table wac.combined_wac_table
-            add column if not exists {value} bool default false;"""
+                drop column if exists {key};
+                alter table wac.combined_wac_table
+                add column {key} bool default false;"""
         cursor.execute(q)
         if value == "allnaics":
             significant_industry(lode_no, industry_threshold)
