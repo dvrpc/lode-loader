@@ -22,4 +22,3 @@ for state in ["pa", "nj"]:
 build_index(DB, counties, YEAR)
 local_flag(DB, YEAR, counties)
 build_regional_index(DB)
-# add_dvrpc_cols(DB, industry_threshold=0.75) # deleting this
