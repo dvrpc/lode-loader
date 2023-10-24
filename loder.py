@@ -11,13 +11,16 @@ from dotenv import load_dotenv
 load_dotenv()
 
 DB = os.getenv("DB")
+NEWDB = os.getenv("NEWDB")
+SCHEMA = os.getenv("SCHEMA")
 LODES = os.getenv("LODES")
 YEAR = os.getenv("YEAR")
 STATES = json.loads(os.getenv("STATES"))
 COUNTIES = json.loads(os.getenv("COUNTIES"))
 
+
 for state in STATES:
-    PayLode(YEAR, state, LODES, DB, COUNTIES, "all")
+    PayLode(NEWDB, YEAR, state, LODES, DB, COUNTIES, "all", SCHEMA)
 
 build_index(DB, COUNTIES, YEAR)
 local_flag(DB, YEAR, COUNTIES)

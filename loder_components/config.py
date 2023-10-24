@@ -1,3 +1,10 @@
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
+SCHEMA = os.getenv("SCHEMA")
+
 job_types = {
     "JT00": "All Jobs",
     "JT01": "Primary Jobs",
@@ -39,7 +46,7 @@ od_table = """
     scope varchar
     """
 
-od_temp_table = """
+od_temp_table = f"""
     SELECT
         w_geocode,
         h_geocode,
@@ -54,7 +61,7 @@ od_temp_table = """
         si02,
         si03,
         createdate
-    FROM combined_od WITH NO DATA;
+    FROM {SCHEMA}.combined_od WITH NO DATA;
 
 """
 
@@ -120,7 +127,7 @@ wac_table = """
     """
 
 
-wac_temp_table = """
+wac_temp_table = f"""
       select 
         w_geocode,
         C000,
@@ -175,7 +182,7 @@ wac_temp_table = """
         CFS04,
         CFS05,
         createdate
-    FROM combined_wac
+    FROM {SCHEMA}.combined_wac
     WITH NO DATA;
 
 """
@@ -231,7 +238,7 @@ rac_table = """
     dvrpc_reg bool
 """
 
-rac_temp_table = """
+rac_temp_table = f"""
     
   select 
     h_geocode,
@@ -277,7 +284,7 @@ rac_temp_table = """
     CS01,
     CS02,
     createdate 
-    FROM combined_rac
+    FROM {SCHEMA}.combined_rac
     WITH NO DATA;
 """
 
@@ -328,9 +335,9 @@ xwalk = """
     """
 
 
-xwalk_temp_table = """
+xwalk_temp_table = f"""
     SELECT *
-    FROM xwalk WITH NO DATA;
+    FROM {SCHEMA}.xwalk WITH NO DATA;
 
 """
 

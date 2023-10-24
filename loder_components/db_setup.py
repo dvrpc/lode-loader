@@ -18,17 +18,39 @@ from .db_update import db_connect
 
 
 class PayLode:
-    """The PayLode class pulls RAC, WAC, and OD tables from the Census LEHD into a Postgres db."""
+    """The PayLode class pulls RAC, WAC, and OD tables from the Census LEHD into a Postgres db.
+
+    Attributes
+    ----------
+        create_db : bool
+            tell program to create a new db, or use an existing one
+        year : int
+            year of the lodes/lehd table you want to pull
+        state: str
+            state you are interested in, in shorthand (i.e., "pa" for Pennsylvania)
+        lode_no : str
+            the name of the lodes table (e.g., "lodes8")
+        db_name: str
+            the name of your postgres db (doesn't have to exist already)
+        counties: list
+            list of counties you want to flag as local (for building a local index)
+        pick_or_all : str
+            "pick" lets you pick tables via a TUI, "all" just brings in all tables
+    """
 
     def __init__(
         self,
+        create_db: bool,
         year: int,
         state: str,
         lode_no: str,
         db_name: str,
         counties: list,
         pick_or_all: str = "pick",
+        schema: str = "public",
     ) -> None:
+        self.create_db = create_db
+        self.schema = schema
         self.state = state
         self.lode_no = lode_no
         self.db_name = db_name
@@ -38,8 +60,10 @@ class PayLode:
         self.job_types, self.workforce_types = self.__pick_tables()
         self.counties = counties
 
-        # self.__drop_db() # handy to have while testing
-        self.__create_db()
+        if self.create_db is True:
+            self.__create_db()
+        else:
+            pass
         self.__create_tables()
         self.__populate_tables("od_main")
         self.__populate_tables("od_aux")
@@ -48,7 +72,7 @@ class PayLode:
         self.__populate_tables("xwalk")
 
     def __create_db(self):
-        """Create the DB. name is the lode # you're using"""
+        """Create the DB."""
         cursor, conn = db_connect()
         cursor.execute(f"select 1 from pg_database WHERE datname='{self.db_name}'")
         exists = cursor.fetchone()
@@ -99,21 +123,24 @@ class PayLode:
 
     def __create_tables(self):
         """Sets up required tables and schemas."""
-        cursor, conn = db_connect(self.db_name)
+        cursor, conn = db_connect(self.db_name, self.schema)
+
+        if self.schema != "public":
+            cursor.execute(f"create schema if not exists {self.schema}")
 
         q1 = f"""
-            create table if not exists combined_od ({od_table});
+            create table if not exists {self.schema}.combined_od ({od_table});
         """
 
         q2 = f"""
-            create table if not exists combined_wac ({wac_table});
+            create table if not exists {self.schema}.combined_wac ({wac_table});
         """
 
         q3 = f"""
-            create table if not exists combined_rac ({rac_table});
+            create table if not exists {self.schema}.combined_rac ({rac_table});
         """
         q4 = f"""
-            create table if not exists xwalk ({xwalk});
+            create table if not exists {self.schema}.xwalk ({xwalk});
         """
 
         for value in [q1, q2, q3, q4]:
@@ -160,7 +187,7 @@ class PayLode:
             raise Exception("table must be od_main, od_aux, rac, or wac")
 
         urls = self.__create_urls(f"{table}")
-        cursor, conn = db_connect(self.db_name)
+        cursor, conn = db_connect(self.db_name, self.schema)
 
         # Check if the dictionary is nested
         if isinstance(urls, dict) and isinstance(next(iter(urls.values())), dict):

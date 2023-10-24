@@ -25,14 +25,19 @@ pip install -r requirements.txt
 #### 4. Create a .env file, with these variables. 
 This .env file example shows the variables you need to define.  
 The lodes variable should be "lodes8" or another valid lode set, as this name is used in building URLS to the lodes endpoints.
+
 The counties variable defines a local flag in the final tables so you can filter to a specific region (in this case, the DVRPC region).
+
+The NEWDB variable (bool type) will direct the code to create a new DB with DBNAME (when True) or use an existing DB that is called DBNAME (when False).
 
 ```
 HOST = "localhost"
-UN = "your_postgres_un"
-PW = "fake_pw"
-PORT = "your_db_port"
-DB = "db_name"
+UN = "postgres"
+PW = "your_password"
+PORT = "your_port"
+DB = "db_name(can be existing or new)"
+NEWDB = True
+SCHEMA = "your_new_or_existing_schema"
 LODES = "lodes8"
 YEAR = 2020
 STATES = '["pa", "nj"]'
@@ -52,6 +57,8 @@ COUNTIES = '[
 ## Usage
 Run the loder.py file. By default, it imports all tables then calculates some new values.
 This takes a while, probably 1-3 hours depending on your internet and RAM.
+
+If you are running it more than once for some reason, you need to manually drop your DB or the tables before each run, otherwise you'll duplicate data.
 
 ### Data
 The columns from the raw data are viewable [here.](https://lehd.ces.census.gov/data/lodes/LODES8/LODESTechDoc8.0.pdf) for lodes8, the most recent lode set at the time of this writing.
