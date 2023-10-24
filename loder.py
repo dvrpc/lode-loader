@@ -4,8 +4,8 @@ from loder_components.db_update import (
     local_flag,
     build_regional_index,
 )
-from loder_components.config import dvrpc_counties
 import os
+import json
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -13,12 +13,12 @@ load_dotenv()
 DB = os.getenv("DB")
 LODES = os.getenv("LODES")
 YEAR = os.getenv("YEAR")
+STATES = json.loads(os.getenv("STATES"))
+COUNTIES = json.loads(os.getenv("COUNTIES"))
 
-counties = dvrpc_counties
+for state in STATES:
+    PayLode(YEAR, state, LODES, DB, COUNTIES, "all")
 
-for state in ["pa", "nj"]:
-    PayLode(YEAR, state, LODES, DB, "all")
-
-build_index(DB, counties, YEAR)
-local_flag(DB, YEAR, counties)
+build_index(DB, COUNTIES, YEAR)
+local_flag(DB, YEAR, COUNTIES)
 build_regional_index(DB)

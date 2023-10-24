@@ -13,7 +13,6 @@ from .config import (
     rac_temp_table,
     xwalk,
     xwalk_temp_table,
-    dvrpc_counties,
 )
 from .db_update import db_connect
 
@@ -27,8 +26,8 @@ class PayLode:
         state: str,
         lode_no: str,
         db_name: str,
+        counties: list,
         pick_or_all: str = "pick",
-        counties: list = dvrpc_counties,
     ) -> None:
         self.state = state
         self.lode_no = lode_no

@@ -23,7 +23,9 @@ pip install -r requirements.txt
 ```
 
 #### 4. Create a .env file, with these variables. 
+This .env file example shows the variables you need to define.  
 The lodes variable should be "lodes8" or another valid lode set, as this name is used in building URLS to the lodes endpoints.
+The counties variable defines a local flag in the final tables so you can filter to a specific region (in this case, the DVRPC region).
 
 ```
 HOST = "localhost"
@@ -33,6 +35,18 @@ PORT = "your_db_port"
 DB = "db_name"
 LODES = "lodes8"
 YEAR = 2020
+STATES = '["pa", "nj"]'
+COUNTIES = '[
+        "Bucks County, PA",
+        "Chester County, PA",
+        "Delaware County, PA",
+        "Montgomery County, PA",
+        "Philadelphia County, PA",
+        "Burlington County, NJ",
+        "Camden County, NJ",
+        "Gloucester County, NJ",
+        "Mercer County, NJ"
+        ]'
 ```
 
 ## Usage
@@ -40,7 +54,7 @@ Run the loder.py file. By default, it imports all tables then calculates some ne
 This takes a while, probably 1-3 hours depending on your internet and RAM.
 
 ### Data
-The columns from the raw data are viewable [here.](https://lehd.ces.census.gov/data/lodes/LODES8/LODESTechDoc8.0.pdf)
+The columns from the raw data are viewable [here.](https://lehd.ces.census.gov/data/lodes/LODES8/LODESTechDoc8.0.pdf) for lodes8, the most recent lode set at the time of this writing.
 This includes some good general info.
 
 At the high level:
@@ -58,7 +72,7 @@ on a.w_geocode = b.tabblk2020
 where job_type = 'JT00' -- all job types. other types include private, public, etc, see link
 and segment = 'S000' -- total number of jobs, no segmentation. other segments use naics codes, age, etc..., see link 
 and state = 'pa'
-and dvrpc_reg = true -- filter to just DVRPC region
+and dvrpc_reg = true -- filter to just DVRPC region (this is the local flag created by the counties environment variable)
 group by b.trct
 
 ```
