@@ -47,14 +47,7 @@ At the high level:
 * The OD table captures origin and destination zones for workers (home zones and work zones). There is a scope column (values = od_main or od_aux). od_main only includes the states used in loder.py.
 od_aux includes blocks from other states, so you can see flows from areas outside of the state(s) you're analyzing. Be sure to filter to one or the other.
 * The RAC table includes jobs totaled by home census blocks.
-* The WAC table includes jobs totaled by work census blocks. DVRPC also added a few columns here as part of this analysis. Added columns:
-  * dvrpc_reg - indicates dvrpc region census blocks
-  * dvrpc_block_significant_industry - flags blocks where an industry makes up more than 75% of that block's jobs
-  * dvrpc_above_quartile_55 - flags blocks where the number of workers who are 55+ years old are in the regional top quartile 
-  * dvrpc_above_quartile_low_pay - flags blocks where the number of workers who make less than $1250/month are in the regional top quartile
-  * dvrpc_above_quartile_no_hs - flags blocks where the number of workers who do not have a high school diploma are in the regional top quartile
-  * dvrpc_above_quartile_small_biz - flags blocks where the number of workers in small businesses are in the regional top quartile 
-  * dvrpc_above_quartile_large_biz - flags blocks where the number of workers in large businesses are in the regional top quartile 
+* The WAC table includes jobs totaled by work census blocks. 
 
 Here's an example sql query, which aggregates total jobs from the WAC table by tract.
 
