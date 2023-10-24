@@ -12,16 +12,15 @@ from dotenv import load_dotenv
 load_dotenv()
 
 DB = os.getenv("DB")
+LODES = os.getenv("LODES")
 YEAR = os.getenv("YEAR")
 
-lode_no = DB
-year = YEAR
 counties = dvrpc_counties
 
 for state in ["pa", "nj"]:
-    PayLode(year, state, lode_no, "all")
+    PayLode(YEAR, state, LODES, DB, "all")
 
-build_index(lode_no, counties, year)
-local_flag(lode_no, year, counties)
-build_regional_index(lode_no)
-add_dvrpc_cols(lode_no, industry_threshold=0.75)
+# build_index(LODES, counties, YEAR)
+# local_flag(LODES, YEAR, counties)
+# build_regional_index(LODES)
+# add_dvrpc_cols(LODES, industry_threshold=0.75)

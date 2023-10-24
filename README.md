@@ -22,14 +22,16 @@ python -m venv ve
 pip install -r requirements.txt
 ```
 
-#### 4. Create a .env file, with these variables. The DB should actually be "lodes8" or another valid lode set, as this name is used in later calls.
+#### 4. Create a .env file, with these variables. 
+The lodes variable should be "lodes8" or another valid lode set, as this name is used in building URLS to the lodes endpoints.
 
 ```
 HOST = "localhost"
 UN = "your_postgres_un"
 PW = "fake_pw"
 PORT = "your_db_port"
-DB = "lodes8"
+DB = "db_name"
+LODES = "lodes8"
 YEAR = 2020
 ```
 

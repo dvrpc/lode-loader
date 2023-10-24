@@ -18,17 +18,21 @@ from .config import (
 from .db_update import db_connect
 
 
-year = 2020
-
-
 class PayLode:
     """The PayLode class pulls RAC, WAC, and OD tables from the Census LEHD into a Postgres db."""
 
     def __init__(
-        self, year: int, state: str, lode_no: str, pick_or_all: str = "pick", counties: list = dvrpc_counties
+        self,
+        year: int,
+        state: str,
+        lode_no: str,
+        db_name: str,
+        pick_or_all: str = "pick",
+        counties: list = dvrpc_counties,
     ) -> None:
         self.state = state
         self.lode_no = lode_no
+        self.db_name = db_name
         self.base_url = f"https://lehd.ces.census.gov/data/lodes/{self.lode_no.upper()}/{self.state}/"
         self.pick_or_all = pick_or_all
         self.year = year
@@ -47,18 +51,17 @@ class PayLode:
     def __create_db(self):
         """Create the DB. name is the lode # you're using"""
         cursor, conn = db_connect()
-        cursor.execute(
-            f"select 1 from pg_database WHERE datname='{self.lode_no}'")
+        cursor.execute(f"select 1 from pg_database WHERE datname='{self.db_name}'")
         exists = cursor.fetchone()
         if not exists:
-            cursor.execute(f"create database {self.lode_no}")
+            cursor.execute(f"create database {self.db_name}")
         cursor.close()
         conn.close()
 
     def __drop_db(self):
         """Drops the DB."""
         cursor, conn = db_connect()
-        cursor.execute(f"drop database if exists {self.lode_no}")
+        cursor.execute(f"drop database if exists {self.db_name}")
 
     def __picker(self, table):
         """Lets you input the tables you're interested in, if self.pick_or_all != all"""
@@ -97,7 +100,7 @@ class PayLode:
 
     def __create_tables(self):
         """Sets up required tables and schemas."""
-        cursor, conn = db_connect(self.lode_no)
+        cursor, conn = db_connect(self.db_name)
 
         q1 = f"""
             create schema if not exists od;
@@ -162,7 +165,7 @@ class PayLode:
             raise Exception("table must be od_main, od_aux, rac, or wac")
 
         urls = self.__create_urls(f"{table}")
-        cursor, conn = db_connect(self.lode_no)
+        cursor, conn = db_connect(self.db_name)
 
         # Check if the dictionary is nested
         if isinstance(urls, dict) and isinstance(next(iter(urls.values())), dict):
@@ -185,10 +188,8 @@ class PayLode:
                     r = requests.get(value)
                     if r.status_code == 200:
                         compressed_file = BytesIO(r.content)
-                        decompressed_file = gzip.GzipFile(
-                            fileobj=compressed_file)
-                        reader = csv.reader(TextIOWrapper(
-                            decompressed_file, "utf-8"))
+                        decompressed_file = gzip.GzipFile(fileobj=compressed_file)
+                        reader = csv.reader(TextIOWrapper(decompressed_file, "utf-8"))
 
                         next(reader, None)  # Skip header
 
@@ -234,14 +235,10 @@ class PayLode:
             print(
                 "you can check to see if the tables actually exist at the endpoints below:"
             )
-            print(
-                f"https://lehd.ces.census.gov/data/lodes/LODES8/{self.state}/od/")
-            print(
-                f"https://lehd.ces.census.gov/data/lodes/LODES8/{self.state}/rac/")
-            print(
-                f"https://lehd.ces.census.gov/data/lodes/LODES8/{self.state}/wac/")
-            print(
-                f"the rest of the {table} tables were imported successfully.")
+            print(f"https://lehd.ces.census.gov/data/lodes/LODES8/{self.state}/od/")
+            print(f"https://lehd.ces.census.gov/data/lodes/LODES8/{self.state}/rac/")
+            print(f"https://lehd.ces.census.gov/data/lodes/LODES8/{self.state}/wac/")
+            print(f"the rest of the {table} tables were imported successfully.")
 
     def handle_sql_insert(value, table, derive_type_and_seg_func, state):
         """Paramaterized queries to insert data into table"""
@@ -300,12 +297,10 @@ class PayLode:
             urls = {}
             urls["xwalk_url"] = table_base
         else:
-            raise Exception(
-                "table must be od_main, od_aux, rac, wac, or xwalk")
+            raise Exception("table must be od_main, od_aux, rac, wac, or xwalk")
         return urls
 
 
 if __name__ == "__main__":
-
     for state in ["pa", "nj"]:
         PayLode(2020, state, "lodes8", "all")
