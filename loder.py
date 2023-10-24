@@ -6,9 +6,16 @@ from loder_components.db_update import (
     add_dvrpc_cols,
 )
 from loder_components.config import dvrpc_counties
+import os
+from dotenv import load_dotenv
 
-lode_no = "lodes8"
-year = 2020
+load_dotenv()
+
+DB = os.getenv("DB")
+YEAR = os.getenv("YEAR")
+
+lode_no = DB
+year = YEAR
 counties = dvrpc_counties
 
 for state in ["pa", "nj"]:
