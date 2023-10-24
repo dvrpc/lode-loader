@@ -1,0 +1,8 @@
+The data comes from the Census Lodes product. Documentation, including a data dictionary for each table, is available here:
+https://lehd.ces.census.gov/data/lodes/LODES8/LODESTechDoc8.0.pdf
+The combined_wac_table contains Workplace Area Characteristic (WAC), where jobs are totaled by work Census Block. 
+The combined_rac_table contains Residential Area Characteristics (RAC), where jobs are totaled by home Census Block. 
+The combined_od_table contains Origin Destination (OD) data, where job totals are associated with both a home and a work Census Block. 
+The xwalk table is a geography crosswalk; in other words, it is a table used to join data to aggregate it to other geometries.
+For example, data can be aggregated in SQL to the Census tract level, or to ZCTA, or to County, or any other geography in the table.
+The data should not be analyzed raw at the block level due to margin of error, so ensure that you are always joining with the geography crosswalk to tract level or higher for accurate results.
