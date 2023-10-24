@@ -25,17 +25,13 @@ def build_index(db_name: str, counties: list, year: int):
     d = {"rac": "h_geocode", "wac": "w_geocode"}
     for key, value in d.items():
         print(f"building index for {key} table...")
-        q = f"""create index if not exists {key}_index on combined_{key}_table({value});"""
+        q = f"""create index if not exists {key}_index on combined_{key}({value});"""
         cursor.execute(q, {"counties": counties})
     print("building index for geography crosswalk...")
     cursor.execute(f"""create index if not exists xwalk_index on xwalk(tabblk{year})""")
     print("building index for od table...")
-    cursor.execute(
-        "create index if not exists idx_home on combined_od_table(h_geocode);"
-    )
-    cursor.execute(
-        "create index if not exists idx_work on combined_od_table(w_geocode);"
-    )
+    cursor.execute("create index if not exists idx_home on combined_od(h_geocode);")
+    cursor.execute("create index if not exists idx_work on combined_od(w_geocode);")
     cursor.close()
     conn.close()
 
@@ -48,17 +44,17 @@ def local_flag(db_name: str, year: int, counties: list):
     tables = ["rac", "wac", "od"]
     cols = ["w_geocode", "h_geocode"]
     for table in tables:
-        init_q = f"update combined_{table}_table SET dvrpc_reg = false"
+        init_q = f"update combined_{table} SET dvrpc_reg = false"
         cursor.execute(init_q)
         if table == "rac" or table == "wac":
             census_block_col = cols[1] if table == "rac" else cols[0]
-            q = f"""update combined_{table}_table
+            q = f"""update combined_{table}
                     set dvrpc_reg = case
                       when xwalk.ctyname = ANY(%(counties)s) then true
                       else false
                     end
                     from xwalk
-                    where combined_{table}_table.{census_block_col} = xwalk.tabblk{year}
+                    where combined_{table}.{census_block_col} = xwalk.tabblk{year}
                     and xwalk.ctyname = ANY(%(counties)s)
                 """
             print(f"updating dvrpc_reg column in {table}...")
@@ -67,13 +63,13 @@ def local_flag(db_name: str, year: int, counties: list):
         elif table == "od":
             for col in cols:
                 print(f"updating dvrpc_reg column in {table} for column {col}...")
-                q = f"""update combined_{table}_table
+                q = f"""update combined_{table}
                         set dvrpc_reg = case
                           when xwalk.ctyname = ANY(%(counties)s) then true
                           else false
                         end                
                         from xwalk
-                        where combined_{table}_table.{col} = xwalk.tabblk{year}
+                        where combined_{table}.{col} = xwalk.tabblk{year}
                         and xwalk.ctyname = ANY(%(counties)s)
                     """
                 cursor.execute(q, {"counties": counties})
@@ -88,7 +84,7 @@ def build_regional_index(db_name: str):
     tables = ["rac", "wac", "od"]
     for table in tables:
         print(f"building regional index for {table} table...")
-        q = f"""create index if not exists regional_{table}_index on combined_{table}_table(dvrpc_reg);"""
+        q = f"""create index if not exists regional_{table}_index on combined_{table}(dvrpc_reg);"""
         cursor.execute(q)
     cursor.close()
     conn.close()

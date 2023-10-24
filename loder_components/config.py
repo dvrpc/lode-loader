@@ -54,7 +54,7 @@ od_temp_table = """
         si02,
         si03,
         createdate
-    FROM combined_od_table WITH NO DATA;
+    FROM combined_od WITH NO DATA;
 
 """
 
@@ -175,7 +175,7 @@ wac_temp_table = """
         CFS04,
         CFS05,
         createdate
-    FROM combined_wac_table
+    FROM combined_wac
     WITH NO DATA;
 
 """
@@ -277,7 +277,7 @@ rac_temp_table = """
     CS01,
     CS02,
     createdate 
-    FROM combined_rac_table
+    FROM combined_rac
     WITH NO DATA;
 """
 

@@ -103,15 +103,15 @@ class PayLode:
         cursor, conn = db_connect(self.db_name)
 
         q1 = f"""
-            create table if not exists combined_od_table ({od_table});
+            create table if not exists combined_od ({od_table});
         """
 
         q2 = f"""
-            create table if not exists combined_wac_table ({wac_table});
+            create table if not exists combined_wac ({wac_table});
         """
 
         q3 = f"""
-            create table if not exists combined_rac_table ({rac_table});
+            create table if not exists combined_rac ({rac_table});
         """
         q4 = f"""
             create table if not exists xwalk ({xwalk});
@@ -133,12 +133,12 @@ class PayLode:
 
             if table in ["rac", "wac"]:
                 return f"""
-                    INSERT INTO combined_{table}_table
+                    INSERT INTO combined_{table}
                     SELECT *, '{self.state}', '{job_type}', '{segment}' FROM temp_table;
                 """
             elif table in ["od_main", "od_aux"]:
                 return f"""
-                    INSERT INTO combined_od_table
+                    INSERT INTO combined_od
                     SELECT *, '{job_type}', '{self.state}', 'false', '{table}' FROM temp_table;
                 """
             elif table in ["xwalk"]:
@@ -243,12 +243,12 @@ class PayLode:
 
         if table in ["rac", "wac"]:
             return f"""
-                INSERT INTO combined_{table}_table
+                INSERT INTO combined_{table}
                 SELECT *, '{state}', '{job_type}', '{segment}' FROM temp_table;
             """
         elif table in ["od_main", "od_aux"]:
             return f"""
-                INSERT INTO combined_od_table
+                INSERT INTO combined_od
                 SELECT *, '{job_type}', '{state}', 'false', '{table}' FROM temp_table;
             """
         else:
