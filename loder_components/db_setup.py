@@ -103,22 +103,18 @@ class PayLode:
         cursor, conn = db_connect(self.db_name)
 
         q1 = f"""
-            create schema if not exists od;
-            create table if not exists od.combined_od_table ({od_table});
+            create table if not exists combined_od_table ({od_table});
         """
 
         q2 = f"""
-            create schema if not exists wac;
-            create table if not exists wac.combined_wac_table ({wac_table});
+            create table if not exists combined_wac_table ({wac_table});
         """
 
         q3 = f"""
-            create schema if not exists rac;
-            create table if not exists rac.combined_rac_table ({rac_table});
+            create table if not exists combined_rac_table ({rac_table});
         """
         q4 = f"""
-            create schema if not exists geo_xwalk;
-            create table if not exists geo_xwalk.xwalk ({xwalk});
+            create table if not exists xwalk ({xwalk});
         """
 
         for value in [q1, q2, q3, q4]:
@@ -137,17 +133,17 @@ class PayLode:
 
             if table in ["rac", "wac"]:
                 return f"""
-                    INSERT INTO {table}.combined_{table}_table
+                    INSERT INTO combined_{table}_table
                     SELECT *, '{self.state}', '{job_type}', '{segment}' FROM temp_table;
                 """
             elif table in ["od_main", "od_aux"]:
                 return f"""
-                    INSERT INTO od.combined_od_table
+                    INSERT INTO combined_od_table
                     SELECT *, '{job_type}', '{self.state}', 'false', '{table}' FROM temp_table;
                 """
             elif table in ["xwalk"]:
                 return f"""
-                INSERT INTO geo_xwalk.{table}
+                INSERT INTO {table}
                 SELECT * from temp_table;
                 """
             else:
@@ -247,12 +243,12 @@ class PayLode:
 
         if table in ["rac", "wac"]:
             return f"""
-                INSERT INTO {table}.combined_{table}_table
+                INSERT INTO combined_{table}_table
                 SELECT *, '{state}', '{job_type}', '{segment}' FROM temp_table;
             """
         elif table in ["od_main", "od_aux"]:
             return f"""
-                INSERT INTO od.combined_od_table
+                INSERT INTO combined_od_table
                 SELECT *, '{job_type}', '{state}', 'false', '{table}' FROM temp_table;
             """
         else:

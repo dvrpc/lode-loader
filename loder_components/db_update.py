@@ -19,9 +19,9 @@ def db_connect(db: str = "postgres"):
     return cursor, conn
 
 
-def build_index(lode_no: str, counties: list, year: int):
+def build_index(db_name: str, counties: list, year: int):
     """Build an index to speed up later queries"""
-    cursor, conn = db_connect(lode_no)
+    cursor, conn = db_connect(db_name)
     d = {"rac": "h_geocode", "wac": "w_geocode"}
     for key, value in d.items():
         print(f"building index for {key} table...")
@@ -42,11 +42,11 @@ def build_index(lode_no: str, counties: list, year: int):
     conn.close()
 
 
-def local_flag(lode_no: str, year: int, counties: list):
+def local_flag(db_name: str, year: int, counties: list):
     """Sets the regional identifies column (dvrpc_reg) to true for the counties
     list passed into the class (default is dvrpc counties). For OD, the the flag
     is set for either/both home/work blocks where the block is in self.counties."""
-    cursor, conn = db_connect(lode_no)
+    cursor, conn = db_connect(db_name)
     tables = ["rac", "wac", "od"]
     cols = ["w_geocode", "h_geocode"]
     for table in tables:
@@ -84,9 +84,9 @@ def local_flag(lode_no: str, year: int, counties: list):
     conn.close()
 
 
-def build_regional_index(lode_no: str):
+def build_regional_index(db_name: str):
     """Build an index to speed up later queries"""
-    cursor, conn = db_connect(lode_no)
+    cursor, conn = db_connect(db_name)
     tables = ["rac", "wac", "od"]
     for table in tables:
         print(f"building regional index for {table} table...")
@@ -96,10 +96,10 @@ def build_regional_index(lode_no: str):
     conn.close()
 
 
-def add_dvrpc_cols(lode_no: str, industry_threshold: float = 0.5):
+def add_dvrpc_cols(db_name: str, industry_threshold: float = 0.5):
     """Adds a few columns to the WAC and RAC tables for further DVRPC analysis.
     Populates the columns using other functions."""
-    cursor, conn = db_connect(lode_no)
+    cursor, conn = db_connect(db_name)
 
     print(
         f"creating and populating dvrpc-created columns for {industry_threshold} industry threshold"
@@ -120,14 +120,14 @@ def add_dvrpc_cols(lode_no: str, industry_threshold: float = 0.5):
                 add column {key} bool default false;"""
         cursor.execute(q)
         if value == "allnaics":
-            significant_industry(lode_no, industry_threshold)
+            significant_industry(db_name, industry_threshold)
         else:
-            dvrpc_quartiles(lode_no, value, key)  # 55+ workers
+            dvrpc_quartiles(db_name, value, key)  # 55+ workers
 
 
-def significant_industry(lode_no: str, threshold: float = 0.75):
+def significant_industry(db_name: str, threshold: float = 0.75):
     """Tags true/false if an industry makes up more than threshold of the jobs in a block (default 75%)"""
-    cursor, conn = db_connect(lode_no)
+    cursor, conn = db_connect(db_name)
     naics_str = " ".join([str(item + "+") for item in naics_cols])
     naics_str = naics_str.rstrip("+")
     query_blocks = []  # holds or clauses that are dynamically built below
@@ -154,11 +154,11 @@ def significant_industry(lode_no: str, threshold: float = 0.75):
     conn.close()
 
 
-def dvrpc_quartiles(lode_no: str, col: str, boolcol: str, quartile: int = 4):
+def dvrpc_quartiles(db_name: str, col: str, boolcol: str, quartile: int = 4):
     """Returns the indicated quartile of the dvrpc region for a given column
     Top 75% = quartile 4. Note that 0 values are excluded.
     Example: top 75% of blocks with small biz versus top 75 of all blocks"""
-    cursor, conn = db_connect(lode_no)
+    cursor, conn = db_connect(db_name)
     print(f"updating the {boolcol} column..")
 
     q = f"""

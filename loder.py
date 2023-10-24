@@ -3,7 +3,6 @@ from loder_components.db_update import (
     build_index,
     local_flag,
     build_regional_index,
-    add_dvrpc_cols,
 )
 from loder_components.config import dvrpc_counties
 import os
@@ -20,7 +19,7 @@ counties = dvrpc_counties
 for state in ["pa", "nj"]:
     PayLode(YEAR, state, LODES, DB, "all")
 
-# build_index(LODES, counties, YEAR)
-# local_flag(LODES, YEAR, counties)
-# build_regional_index(LODES)
-# add_dvrpc_cols(LODES, industry_threshold=0.75)
+build_index(DB, counties, YEAR)
+local_flag(DB, YEAR, counties)
+build_regional_index(DB)
+# add_dvrpc_cols(DB, industry_threshold=0.75) # deleting this
