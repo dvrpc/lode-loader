@@ -22,6 +22,6 @@ COUNTIES = json.loads(os.getenv("COUNTIES"))
 for state in STATES:
     PayLode(NEWDB, YEAR, state, LODES, DB, COUNTIES, "all", SCHEMA)
 
-build_index(DB, COUNTIES, YEAR)
-local_flag(DB, YEAR, COUNTIES)
-build_regional_index(DB)
+build_index(DB, COUNTIES, YEAR, SCHEMA)
+local_flag(DB, YEAR, COUNTIES, SCHEMA)
+build_regional_index(DB, SCHEMA)

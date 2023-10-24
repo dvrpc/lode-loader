@@ -159,17 +159,17 @@ class PayLode:
 
             if table in ["rac", "wac"]:
                 return f"""
-                    INSERT INTO combined_{table}
+                    INSERT INTO {self.schema}.combined_{table}
                     SELECT *, '{self.state}', '{job_type}', '{segment}' FROM temp_table;
                 """
             elif table in ["od_main", "od_aux"]:
                 return f"""
-                    INSERT INTO combined_od
+                    INSERT INTO {self.schema}.combined_od
                     SELECT *, '{job_type}', '{self.state}', 'false', '{table}' FROM temp_table;
                 """
             elif table in ["xwalk"]:
                 return f"""
-                INSERT INTO {table}
+                INSERT INTO {self.schema}.{table}
                 SELECT * from temp_table;
                 """
             else:
@@ -262,19 +262,19 @@ class PayLode:
             print(f"https://lehd.ces.census.gov/data/lodes/LODES8/{self.state}/wac/")
             print(f"the rest of the {table} tables were imported successfully.")
 
-    def handle_sql_insert(value, table, derive_type_and_seg_func, state):
+    def handle_sql_insert(self, value, table, derive_type_and_seg_func, state):
         """Paramaterized queries to insert data into table"""
         last_part = value.split("/")[-1].replace(".csv.gz", "")
         job_type, segment = derive_type_and_seg_func(last_part)
 
         if table in ["rac", "wac"]:
             return f"""
-                INSERT INTO combined_{table}
+                INSERT INTO {self.schema}.combined_{table}
                 SELECT *, '{state}', '{job_type}', '{segment}' FROM temp_table;
             """
         elif table in ["od_main", "od_aux"]:
             return f"""
-                INSERT INTO combined_od
+                INSERT INTO {self.schema}.combined_od
                 SELECT *, '{job_type}', '{state}', 'false', '{table}' FROM temp_table;
             """
         else:

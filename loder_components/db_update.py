@@ -62,14 +62,14 @@ def local_flag(db_name: str, year: int, counties: list, schema: str):
             census_block_col = cols[1] if table == "rac" else cols[0]
             q = f"""update {schema}.combined_{table}
                     set dvrpc_reg = case
-                      when xwalk.ctyname = ANY(%(counties)s) then true
+                      when {schema}.xwalk.ctyname = ANY(%(counties)s) then true
                       else false
                     end
-                    from xwalk
+                    from {schema}.xwalk
                     where {schema}.combined_{table}.{census_block_col} = xwalk.tabblk{year}
                     and xwalk.ctyname = ANY(%(counties)s)
                 """
-            print(f"updating dvrpc_reg column in {table}...")
+            print(f"updating dvrpc_reg column in {schema}.{table}...")
             cursor.execute(q, {"counties": counties})
 
         elif table == "od":
