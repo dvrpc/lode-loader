@@ -22,8 +22,8 @@ class PayLode:
 
     Attributes
     ----------
-        create_db : bool
-            tell program to create a new db, or use an existing one
+        create_db : str
+            tell program to create a new db, or use an existing one. was originally bool in .env but that evaluates to string.
         year : int
             year of the lodes/lehd table you want to pull
         state: str
@@ -36,11 +36,13 @@ class PayLode:
             list of counties you want to flag as local (for building a local index)
         pick_or_all : str
             "pick" lets you pick tables via a TUI, "all" just brings in all tables
+        schema: str
+            the schema you want to put data in (existing or not)
     """
 
     def __init__(
         self,
-        create_db: bool,
+        create_db: str,
         year: int,
         state: str,
         lode_no: str,
@@ -59,11 +61,7 @@ class PayLode:
         self.year = year
         self.job_types, self.workforce_types = self.__pick_tables()
         self.counties = counties
-
-        if self.create_db is True:
-            self.__create_db()
-        else:
-            pass
+        self.__create_db()
         self.__create_tables()
         self.__populate_tables("od_main")
         self.__populate_tables("od_aux")
@@ -73,13 +71,17 @@ class PayLode:
 
     def __create_db(self):
         """Create the DB."""
-        cursor, conn = db_connect()
-        cursor.execute(f"select 1 from pg_database WHERE datname='{self.db_name}'")
-        exists = cursor.fetchone()
-        if not exists:
-            cursor.execute(f"create database {self.db_name}")
-        cursor.close()
-        conn.close()
+
+        if self.create_db == "True":
+            cursor, conn = db_connect()
+            cursor.execute(f"select 1 from pg_database WHERE datname='{self.db_name}'")
+            exists = cursor.fetchone()
+            if not exists:
+                cursor.execute(f"create database {self.db_name}")
+            cursor.close()
+            conn.close()
+        else:
+            pass
 
     def __drop_db(self):
         """Drops the DB."""
