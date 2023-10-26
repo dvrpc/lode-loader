@@ -73,8 +73,8 @@ od_aux includes blocks from other states, so you can see flows from areas outsid
 Here's an example sql query, which aggregates total jobs from the WAC table by tract.
 
 ```
-select b.trct, sum(a.c000) as total_jobs from wac.combined_wac_table a
-inner join geo_xwalk.xwalk b
+select b.trct, sum(a.c000) as total_jobs from combined_wac a
+inner join xwalk b
 on a.w_geocode = b.tabblk2020 
 where job_type = 'JT00' -- all job types. other types include private, public, etc, see link
 and segment = 'S000' -- total number of jobs, no segmentation. other segments use naics codes, age, etc..., see link 
